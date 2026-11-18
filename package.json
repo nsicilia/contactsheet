@@ -1,0 +1,21 @@
+{
+  "name": "contactsheet",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=24.12.0 <25"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "contactsheet": "node apps/cli/dist/index.js",
+    "ctx": "node apps/cli/dist/index.js",
+    "test": "pnpm run build && node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3",
+    "@modelcontextprotocol/sdk": "1.32.2"
+  }
+}

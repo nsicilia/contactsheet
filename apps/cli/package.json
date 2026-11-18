@@ -1,0 +1,17 @@
+{
+  "name": "@ctx/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "exports": "./dist/index.js",
+  "bin": {
+    "contactsheet": "./dist/index.js",
+    "ctx": "./dist/index.js"
+  },
+  "dependencies": {
+    "@ctx/core": "workspace:*",
+    "@ctx/storage": "workspace:*",
+    "@ctx/mcp": "workspace:*"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@ctx/storage",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "exports": "./dist/index.js",
+  "dependencies": {
+    "@ctx/core": "workspace:*"
+  }
+}
