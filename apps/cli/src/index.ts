@@ -12,6 +12,10 @@ const usage = `contactsheet init
 contactsheet index [file] [--source label] [--session label]    (defaults to stdin)
 contactsheet search <query> [--id archive-id] [--limit n]
 contactsheet read <archive-id> [--line n] [--count n] [--offset n]
+contactsheet coding [lite|full|ultra|off|review|audit|debt|gain|help]
+contactsheet compare <baseline.json> <guided.json>
+contactsheet board [on|off|import|config] [--from transcript-directory]
+contactsheet statusline
 contactsheet serve
 contactsheet hook-config <claude|codex|gemini|qwen|copilot|zcode>
 Use --db <path> with any command, or set CONTEXT_DB. Default: .context/archive.sqlite`;
@@ -44,15 +48,15 @@ async function main() {
     return;
   }
   const flags: Record<string, string[]> = {
-    init: [], serve: [], 'hook-config': [], hook: [],
+    board: ['from'], statusline: [], coding: [], compare: [], init: [], serve: [], 'hook-config': [], hook: [],
     capture: ['source', 'session'], index: ['source', 'session'],
     search: ['id', 'limit'], read: ['line', 'count', 'offset'],
   };
   if (!Object.hasOwn(flags, command)) throw new Error(usage);
   const options = Object.fromEntries(['db', ...flags[command]!].map(key => [key, { type: 'string' as const }]));
   const { values, positionals } = parseArgs({ args, options, allowPositionals: true });
-  const arity = ['search', 'read', 'hook-config', 'hook'].includes(command) ? 1 : 0;
-  if (positionals.length < arity || positionals.length > (command === 'index' ? 1 : arity)) throw new Error(usage);
+  const arity = command === 'compare' ? 2 : ['search', 'read', 'hook-config', 'hook'].includes(command) ? 1 : 0;
+  if (positionals.length < arity || positionals.length > (['index', 'coding', 'board'].includes(command) ? 1 : arity)) throw new Error(usage);
 
   const path = resolve(values.db ?? process.env.CONTEXT_DB ?? '.context/archive.sqlite');
   const cli = fileURLToPath(import.meta.url);
@@ -67,11 +71,48 @@ async function main() {
     await capture(path, values.source ?? 'shell', values.session ?? '', () => openArchive(path));
     return;
   }
+  if (command === 'compare') {
+    const { compare } = await import('./measure.js');
+    console.log(JSON.stringify(compare(positionals), null, 2));
+    return;
+  }
   const archive = openArchive(path);
   const engine = new ContextEngine(archive);
   try {
     let output: unknown;
     switch (command) {
+      case 'statusline': {
+        if (!archive.boardVisible()) return;
+        const event = JSON.parse(await readInput());
+        const cost = event?.cost?.total_cost_usd;
+        const ms = event?.cost?.total_api_duration_ms;
+        const win = event?.context_window;
+        const tokens = (win?.total_input_tokens ?? 0) + (win?.total_output_tokens ?? 0);
+        const fields = ['ContactSheet ' + engine.coding().level];
+        if (win && Number.isFinite(tokens)) fields.push(tokens + ' tokens');
+        if (Number.isFinite(cost)) fields.push('$' + cost.toFixed(2));
+        if (Number.isFinite(ms)) fields.push(Math.round(ms / 1000) + 's API');
+        console.log(fields.join(' | '));
+        return;
+      }
+      case 'board': {
+        const arg = positionals[0];
+        if (arg === 'config') {
+          const shellQuote = (part: string) => "'" + part.replaceAll("'", "'\\''") + "'";
+          output = { statusLine: { type: 'command', command: [process.execPath, cli, 'statusline', '--db', path].map(shellQuote).join(' ') } };
+        } else if (arg === 'import' && values.from) {
+          const { importSessions } = await import('./board.js');
+          output = await importSessions(resolve(values.from), archive);
+        } else if (arg === undefined || arg === 'on' || arg === 'off') {
+          output = { visible: archive.boardVisible(arg), totals: archive.boardTotals() };
+        } else throw new Error('Expected board on, off, config or import --from PATH');
+        break;
+      }
+      case 'coding': {
+        const arg = positionals[0];
+        output = arg && ['review', 'audit', 'debt', 'gain', 'help'].includes(arg) ? engine.coding(undefined, arg) : engine.coding(arg);
+        break;
+      }
       case 'init':
         output = mcpConfig(cli, path);
         break;

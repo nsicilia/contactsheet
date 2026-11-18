@@ -32,11 +32,35 @@ export class SqliteArchive implements Archive {
       } else if (app !== 1129601073 || version !== 1) {
         throw new Error('Unrecognized archive or unsupported schema version');
       }
+      this.db.exec('CREATE TABLE IF NOT EXISTS preferences(key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+      this.db.exec('CREATE TABLE IF NOT EXISTS session_usage(id TEXT PRIMARY KEY, tokens INTEGER, cost REAL, duration REAL)');
       this.db.exec('COMMIT');
     } catch (error) {
       this.db.close(); // Rolls back any open transaction.
       throw error;
     }
+  }
+
+  boardVisible(setting?: 'on' | 'off') {
+    if (setting) this.db.prepare("INSERT INTO preferences VALUES ('board', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(setting);
+    return this.db.prepare("SELECT value FROM preferences WHERE key='board'").get()?.value !== 'off';
+  }
+
+  recordSession(id: string, tokens: number | null, cost: number | null, duration: number | null) {
+    this.db.prepare('INSERT OR REPLACE INTO session_usage(id,tokens,cost,duration) VALUES(?,?,?,?)').run(id,tokens,cost,duration);
+  }
+
+  boardTotals() {
+    return this.db.prepare('SELECT count(*) AS sessions, sum(tokens) AS tokens, sum(cost) AS reportedCostUSD, sum(duration) AS reportedApiMs FROM session_usage').get();
+  }
+
+  codingLevel(level?: string) {
+    if (level !== undefined) {
+      this.db.prepare("INSERT INTO preferences VALUES ('coding', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(level);
+      return level;
+    }
+    const saved = this.db.prepare("SELECT value FROM preferences WHERE key='coding'").get();
+    return String(saved?.value ?? process.env.CONTACTSHEET_CODING_LEVEL ?? 'full');
   }
 
   close() { this.db.close(); }

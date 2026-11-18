@@ -7,6 +7,9 @@ import { database, node, runtime, wrap } from './native.mjs';
 const tools = JSON.parse(readFileSync(new URL('./tools.json', import.meta.url), 'utf8'));
 
 export default function contactsheet(pi) {
+  pi.on('before_agent_start', event => ({
+    systemPrompt: event.systemPrompt + '\nFor coding work, consult context_coding for the current ContactSheet policy. Apply its instructions until the user changes mode.',
+  }));
   pi.on('tool_call', (event, ctx) => {
     if (event.toolName !== 'bash') return;
     const command = wrap(event.input, ctx.sessionManager?.getSessionId?.(), ctx.cwd);

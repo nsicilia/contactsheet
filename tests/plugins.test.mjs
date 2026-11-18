@@ -16,6 +16,8 @@ test('packaged Pi tools index, search and read from the same workspace', async (
     return JSON.parse(reply.content[0].text);
   };
   try {
+    assert.equal((await call('context_coding', { level: 'ultra' })).level, 'ultra');
+    assert.match((await call('context_coding', { action: 'review' })).workflow, /diff/);
     const receipt = await call('context_index', { text: 'fixture diagnostic' });
     const hits = await call('context_search', { query: 'diagnostic' });
     assert.match(JSON.stringify(hits), new RegExp(receipt.id));

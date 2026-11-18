@@ -83,6 +83,14 @@ export async function packagePlugins() {
     await put(join(dir, 'LICENSE.txt'), license);
     await put(join(dir, 'THIRD-PARTY.txt'), thirdParty);
     await put(join(dir, 'skills/contactsheet/SKILL.md'), skill);
+    for (const action of ['review', 'audit', 'debt', 'gain', 'help']) {
+      const id = 'contactsheet-' + action;
+      await put(join(dir, 'skills', id, 'SKILL.md'), [
+        '---', 'name: ' + id, 'description: Run the ContactSheet ' + action + ' workflow.', '---', '',
+        'Call context_coding with action "' + action + '". Follow the returned workflow for the user’s requested target.',
+        '',
+      ].join('\n'));
+    }
     return dir;
   }
 

@@ -1,3 +1,4 @@
+import { codingPolicy } from './coding.js';
 import { createHash } from 'node:crypto';
 
 export const maxBytes = 8 * 1024 * 1024;
@@ -19,6 +20,7 @@ export interface Page { text: string; next: Cursor | null }
 export interface Hit { id: string; source: string; line: number; excerpt: string }
 
 export interface Archive {
+  codingLevel(level?: string): string;
   save(entry: Entry, lines: string[]): Entry;
   search(expression: string, limit: number, id?: string): Hit[];
   read(id: string, cursor: Cursor, count: number): Page;
@@ -75,6 +77,13 @@ function sha(text: string) {
 
 export class ContextEngine {
   constructor(private readonly archive: Archive) {}
+
+  coding(level?: string, action?: string) {
+    const current = level ?? this.archive.codingLevel();
+    const policy = codingPolicy(current, action);
+    if (level !== undefined) this.archive.codingLevel(level);
+    return policy;
+  }
 
   index(text: string, source = 'stdin', session = '') {
     if (typeof text !== 'string' || !text.isWellFormed()) throw new Error('Expected Unicode text');

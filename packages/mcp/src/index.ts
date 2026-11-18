@@ -10,7 +10,12 @@ function result(value: unknown) {
 }
 
 export function createServer(engine: ContextEngine) {
-  const server = new McpServer({ name: 'contactsheet', version: '0.1.0' });
+  const policy = engine.coding();
+  const server = new McpServer({ name: 'contactsheet', version: '0.1.0' }, { instructions: 'ContactSheet coding mode: ' + policy.level + '. ' + policy.instructions + ' Consult context_coding for the current policy before coding or when the user changes mode.' });
+  server.registerTool('context_coding', {
+    description: 'Get the current coding policy. Set level only on explicit request. Request review, audit, debt, gain or help instructions with action.',
+    inputSchema: { level: z.enum(['lite', 'full', 'ultra', 'off']).optional(), action: z.enum(['review', 'audit', 'debt', 'gain', 'help']).optional() },
+  }, ({ level, action }) => result(engine.coding(level, action)));
   server.registerTool('context_index', {
     description: 'Archive supplied log text and return its stable ID, metadata and bounded preview.',
     inputSchema: { text: z.string().max(maxBytes), source: label.optional(), session: label.optional() },

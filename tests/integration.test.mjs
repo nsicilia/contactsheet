@@ -40,7 +40,7 @@ test('stdio MCP and CLI share the archive and recover every line of a large log'
   await client.connect(new StdioClientTransport(server));
   t.after(() => client.close());
   assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(),
-    ['context_index', 'context_read', 'context_search']);
+    ['context_coding', 'context_index', 'context_read', 'context_search']);
   async function call(name, args) {
     const reply = await client.callTool({ name, arguments: args });
     assert.ok(!reply.isError, reply.content[0]?.text);
@@ -69,4 +69,39 @@ test('stdio MCP and CLI share the archive and recover every line of a large log'
   assert.equal(recovered, log);
   assert.equal((await client.callTool({ name: 'context_read', arguments: { id: receipt.id, line: 0 } })).isError, true);
   t.diagnostic(`${receipt.bytes} original UTF-8 bytes, ${Buffer.byteLength(receipt.preview)} preview bytes; 5/5 failures surfaced, exact recovery`);
+});
+
+test('coding settings persist across CLI and MCP and invalid changes are atomic', async t => {
+  const { run } = workspace(t);
+  assert.equal(run(['coding', 'off']).instructions, '');
+  const client = new Client({ name: 'coding-test', version: '1' });
+  await client.connect(new StdioClientTransport(run(['init']).mcpServers.contactsheet));
+  t.after(() => client.close());
+  assert.match(client.getInstructions(), /mode: off/);
+  const call = args => client.callTool({ name: 'context_coding', arguments: args });
+  assert.equal((await call({ level: 'ultra', action: 'unknown' })).isError, true);
+  assert.equal(run(['coding']).level, 'off');
+  await call({ level: 'lite' });
+  assert.equal(run(['coding']).level, 'lite');
+  for (const action of ['review','audit','debt','gain','help']) {
+    const reply = await call({ action });
+    assert.deepEqual(JSON.parse(reply.content[0].text), run(['coding', action]));
+  }
+});
+
+test('benchmark comparison and session board use observed local measurements', t => {
+  const { run, cwd, db } = workspace(t);
+  const measure = (file, lines) => writeFileSync(join(cwd, file), JSON.stringify({ task: 'fixture', passed: true, lines }));
+  measure('before.json', 8);
+  measure('after.json', 6);
+  assert.equal(run(['compare', 'before.json', 'after.json']).metrics.lines.percentSaved, 25);
+  const message = { type: 'assistant', message: { id: 'one', usage: { input_tokens: 13, output_tokens: 3 } } };
+  writeFileSync(join(cwd, 'session.jsonl'), [message, message, { type: 'result', total_cost_usd: 0.01 }].map(v => JSON.stringify(v)).join('\n'));
+  for (let i = 0; i < 2; i++) {
+    assert.deepEqual(run(['board','import','--from',cwd]).totals, { sessions: 1, tokens: 16, reportedCostUSD: 0.01, reportedApiMs: null });
+  }
+  const status = () => execFileSync(process.execPath, [cli, 'statusline', '--db', db], { input: '{"cost":{"total_cost_usd":2.5}}', encoding: 'utf8' });
+  assert.match(status(), /\$2\.50/);
+  run(['board','off']);
+  assert.equal(status(), '');
 });
