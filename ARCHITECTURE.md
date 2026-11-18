@@ -13,7 +13,7 @@ MCP client ── stdio tools ──┘
 | `packages/core` | Public engine, archive contract, hashing, input bounds and deterministic compression |
 | `packages/storage` | SQLite schema versioning, transactional writes, BM25 retrieval and exact paged reads |
 | `packages/mcp` | Official MCP SDK stdio transport, argument schemas and three tools |
-| `apps/cli` | Project-local bootstrap, file or stdin capture and server launch |
+| `apps/cli` | Project-local bootstrap, agent hooks, shell output capture and server launch |
 
 ## From capture to retrieval
 
@@ -25,9 +25,15 @@ MCP client ── stdio tools ──┘
 
 The database’s application ID and schema version identify the format. The storage adapter initializes an empty database and rejects unrecognized or future formats. Sessions are provenance labels. The configured database path defines the project boundary.
 
+## Agent capture
+
+For a supported build or test, a `PreToolUse` hook returns modified Bash input. The shell runs the original command in a subshell with `pipefail` and pipes its combined output into the CLI capture process. The hook itself only classifies input. It never starts the build. Its output preserves other tool arguments, and the rewritten command falls outside the matcher on a second pass.
+
+The filter spools to a private file next to the configured project database. Small outputs are replayed as bytes. Larger valid text uses the same engine and archive as explicit indexing. Once a receipt is available the temporary file is removed. A raw-file reference preserves output that exceeds the archive's limits or cannot be indexed. The absolute database path in the generated hook configuration keeps retrieval consistent across working directories.
+
 ## Gateway extension point
 
-A future model-request proxy can construct the same `ContextEngine` and archive provider payloads through its public API. Provider adapters, streaming, conversation budgets and prompt-cache behavior belong in that application. The current executable serves local tools over stdio. Capture is explicit through the CLI or MCP. Agent hooks and the provider proxy are later milestones.
+A future model-request proxy can construct the same `ContextEngine` and archive provider payloads through its public API. Provider adapters, streaming, conversation budgets and prompt-cache behavior belong in that application. The current executable serves local tools over stdio. Capture is available through the CLI, MCP, and the two local agent adapters. The provider proxy is a later milestone.
 
 ## Dependencies
 
