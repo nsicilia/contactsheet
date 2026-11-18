@@ -54,7 +54,7 @@ Indexing through MCP takes literal text. To keep a large log out of the conversa
 
 ## Automatic build and test capture
 
-Claude Code and Codex CLI can capture selected foreground commands before the result reaches the conversation. Ask the agent to run a build or test normally. Output through 4,096 bytes passes back verbatim. For a larger text log, the agent gets a preview and an ID for `context_search` and `context_read`. Both the hook and the MCP server must point at the same database.
+Claude Code, Codex CLI, and Gemini CLI can capture selected foreground commands before the result reaches the conversation. Ask the agent to run a build or test normally. Output through 4,096 bytes passes back verbatim. For a larger text log, the agent gets a preview and an ID for `context_search` and `context_read`. Both the hook and the MCP server must point at the same database.
 
 From the project you want to use with the agent, set `cli` to the absolute path of the built ContactSheet CLI. If you are working in the ContactSheet checkout itself, run:
 
@@ -79,14 +79,23 @@ mkdir -p .codex
 
 If the file already exists, run `node "$cli" hook-config codex` and append the generated group to its `hooks.PreToolUse` array. Register the archive in the same project's `.codex/config.toml` under `[mcp_servers.contactsheet]`, using the `command` and `args` from `node "$cli" init`. An existing registration for the same archive also works. Open Codex in the trusted project and review the hook in `/hooks`. A new session picks up the configuration.
 
+**Gemini CLI.** From the target project, generate its workspace settings using the built CLI path set above. This includes both the `BeforeTool` hook for `run_shell_command` and the ContactSheet MCP server. Both use the same absolute archive path.
+
+```sh
+mkdir -p .gemini
+(set -C; node "$cli" hook-config gemini > .gemini/settings.json)
+```
+
+If settings already exist, print the configuration with `node "$cli" hook-config gemini`, append the generated group to `hooks.BeforeTool`, and merge `mcpServers.contactsheet`. Start Gemini CLI in the trusted workspace and check the hook with `/hooks panel` and the archive tools with `/mcp`. Ask Gemini to run a test and search the captured log for a diagnostic. Gemini applies its command permissions to the resulting capture pipeline. In headless sessions the applicable policy must permit that pipeline, including output redirection. Background shell calls follow Gemini’s ordinary execution path.
+
 **Coverage.** The adapters target Bash and Zsh on macOS and Linux. Supported examples include `npm test`, `pnpm run build`, `yarn lint`, `bun test`, `node --test`, `pytest`, `go test ./...`, `cargo build`, and `make check`. The matcher accepts simple words and options. Compound commands, quoted shell expressions, pipelines, and explicit watch/background modes use the host's normal execution path. To capture a compound command explicitly, use the CLI pipe in **Run it**.
 
 **Storage and output.** The shell combines stdout and stderr in write order. ContactSheet returns the result when the command finishes. Outputs over 8 MiB, logs over 100,000 lines, undecodable large outputs, and indexing failures return a path to a private raw file beside the database. Keep that file for exact recovery or remove it when finished. The capture hook preserves the build's exit status when returning either a receipt or a raw-file path.
 
-[Claude Code hook reference](https://code.claude.com/docs/en/hooks#pretooluse-decision-control) · [Codex hook reference](https://learn.chatgpt.com/docs/hooks)
+[Claude Code hook reference](https://code.claude.com/docs/en/hooks#pretooluse-decision-control) · [Codex hook reference](https://learn.chatgpt.com/docs/hooks) · [Gemini CLI hook reference](https://geminicli.com/docs/hooks/reference/)
 
 ## Verification
 
-`pnpm test` exercises the core, SQLite and the CLI. The integration test starts the compiled stdio server with the official MCP client, indexes a generated 3,001-line log, checks all five failures in the preview, searches for one failure, and reconstructs the entire input through paged reads. It also checks that CLI and MCP return the same receipt. Capture tests invoke both generated hook commands, execute their rewritten shell commands against a failing build, verify exactly one execution and exit status 23, then retrieve an omitted diagnostic and reconstruct the output through MCP.
+`pnpm test` exercises the core, SQLite and the CLI. The integration test starts the compiled stdio server with the official MCP client, indexes a generated 3,001-line log, checks all five failures in the preview, searches for one failure, and reconstructs the entire input through paged reads. It also checks that CLI and MCP return the same receipt. Capture tests invoke all three generated hook commands, execute their rewritten shell commands against a failing build, verify exactly one execution and exit status 23, then retrieve an omitted diagnostic and reconstruct the output through MCP.
 
 [Architecture and limits](ARCHITECTURE.md) · [MIT license](LICENSE)

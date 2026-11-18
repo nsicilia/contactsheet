@@ -18,7 +18,10 @@ export function createServer(engine: ContextEngine) {
   server.registerTool('context_search', {
     description: 'Find ranked original line numbers matching all query words. Optionally restrict to one archive ID.',
     inputSchema: { query: z.string().min(1).max(256), limit: z.number().int().min(1).max(50).optional(), id: id.optional() },
-  }, ({ query, limit, id }) => result(engine.search(query, limit, id)));
+  }, ({ query, limit, id }) => {
+    const hits = engine.search(query, limit, id);
+    return { ...result(hits), structuredContent: { hits } };
+  });
   server.registerTool('context_read', {
     description: 'Read exact original text starting at a 1-based line. Continue with the returned next.line and next.offset.',
     inputSchema: {

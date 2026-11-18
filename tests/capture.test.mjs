@@ -18,7 +18,8 @@ function fixture(t) {
   return { cwd, db, run };
 }
 const event = { hook_event_name: 'PreToolUse', tool_name: 'Bash', session_id: "session's trial" };
-for (const agent of ['claude', 'codex']) {
+const geminiEvent = { ...event, hook_event_name: 'BeforeTool', tool_name: 'run_shell_command' };
+for (const agent of ['claude', 'codex', 'gemini']) {
   test(agent + ' pre-execution capture, failing exit status and MCP recall', async t => {
     const { cwd, run } = fixture(t);
     const lines = Array.from({ length: 3600 }, (_, i) => 'processing item ' + i + ' for the checkout test suite\r\n');
@@ -33,15 +34,18 @@ for (const agent of ['claude', 'codex']) {
       'process.exitCode = 23;',
     ].join('\n'));
     const config = JSON.parse(run(['hook-config', agent]));
-    const hook = config.hooks.PreToolUse[0];
-    assert.ok(new RegExp(hook.matcher).test('Bash'));
-    const input = { command: 'npm run build --silent', description: 'Build checkout', timeout: 30000 };
+    const host = agent === 'gemini' ? geminiEvent : event;
+    const hook = config.hooks[host.hook_event_name][0];
+    assert.ok(new RegExp(hook.matcher).test(host.tool_name));
+    const input = { command: 'npm run build --silent', description: 'Build checkout', ...(agent === 'gemini' ? { dir_path: '.', is_background: false } : { timeout: 30000 }) };
     const reply = JSON.parse(execFileSync('/bin/sh', ['-c', hook.hooks[0].command], {
-      cwd, input: JSON.stringify({ ...event, tool_input: input }),
+      cwd, input: JSON.stringify({ ...host, tool_input: input }),
     })).hookSpecificOutput;
-    assert.equal(reply.permissionDecision, agent === 'claude' ? undefined : 'allow');
-    assert.equal(reply.updatedInput.timeout, input.timeout);
-    const shell = spawnSync('/bin/bash', ['-c', reply.updatedInput.command], { cwd, encoding: 'utf8' });
+    assert.equal(reply.permissionDecision, agent === 'codex' ? 'allow' : undefined);
+    assert.equal(reply.hookEventName, host.hook_event_name);
+    const rewritten = agent === 'gemini' ? reply.tool_input : reply.updatedInput;
+    assert.deepEqual({ ...rewritten, command: input.command }, input);
+    const shell = spawnSync('/bin/bash', ['-c', rewritten.command], { cwd, encoding: 'utf8' });
     assert.equal(shell.status, 23, shell.stderr);
     assert.equal(readFileSync(join(cwd, 'calls'), 'utf8'), '1');
     assert.equal(shell.stderr, '');
@@ -50,14 +54,16 @@ for (const agent of ['claude', 'codex']) {
     const receipt = JSON.parse(shell.stdout);
     assert.match(receipt.preview, /ERROR missing warehouse inventory/);
     assert.equal(receipt.bytes, Buffer.byteLength(log));
-    const configMcp = JSON.parse(run(['init'])).mcpServers.contactsheet;
+    const configMcp = (agent === 'gemini' ? config : JSON.parse(run(['init']))).mcpServers.contactsheet;
     const client = new Client({ name: 'capture-test', version: '1' });
     await client.connect(new StdioClientTransport(configMcp));
     t.after(() => client.close());
     const call = async (name, args) => {
       const result = await client.callTool({ name, arguments: { ...args, id: receipt.id } });
       assert.ok(!result.isError, result.content[0].text);
-      return JSON.parse(result.content[0].text);
+      const value = JSON.parse(result.content[0].text);
+      if (name === 'context_search') assert.deepEqual(result.structuredContent, { hits: value });
+      return value;
     };
     const hits = await call('context_search', { query: 'amber 914' });
     assert.equal(hits[0].line, 501);
@@ -103,4 +109,13 @@ test('unrelated tools, shell programs, background jobs and already routed comman
   assert.deepEqual(apply({ command: 'npm test' }, { hook_event_name: 'PostToolUse' }), {});
   const rewritten = apply({ command: 'pnpm test' }).hookSpecificOutput.updatedInput;
   assert.deepEqual(apply(rewritten), {});
+});
+
+test('Gemini leaves background calls, unrelated tools and other event types alone', () => {
+  const apply = (tool_input, fields = {}) => route('gemini', { ...geminiEvent, tool_input, ...fields }, cli, '/tmp/a');
+  assert.deepEqual(apply({ command: 'npm test', is_background: true }), {});
+  assert.deepEqual(apply({ command: 'npm test' }, { tool_name: 'read_file' }), {});
+  assert.deepEqual(apply({ command: 'npm test' }, { hook_event_name: 'AfterTool' }), {});
+  const updated = apply({ command: 'npm test' }).hookSpecificOutput.tool_input;
+  assert.deepEqual(apply(updated), {});
 });

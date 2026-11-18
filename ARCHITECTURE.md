@@ -27,13 +27,13 @@ The database’s application ID and schema version identify the format. The stor
 
 ## Agent capture
 
-For a supported build or test, a `PreToolUse` hook returns modified Bash input. The shell runs the original command in a subshell with `pipefail` and pipes its combined output into the CLI capture process. The hook itself only classifies input. It never starts the build. Its output preserves other tool arguments, and the rewritten command falls outside the matcher on a second pass.
+For a supported build or test, a pre-execution hook rewrites the shell command. Claude Code and Codex use `PreToolUse` for Bash. Gemini CLI uses `BeforeTool` for `run_shell_command` and reads the override from `hookSpecificOutput.tool_input`. The shell runs the original command in a subshell with `pipefail` and pipes its combined output into the CLI capture process. The hook itself only classifies input. It never starts the build. Its output preserves other tool arguments, and the rewritten command falls outside the matcher on a second pass.
 
 The filter spools to a private file next to the configured project database. Small outputs are replayed as bytes. Larger valid text uses the same engine and archive as explicit indexing. Once a receipt is available the temporary file is removed. A raw-file reference preserves output that exceeds the archive's limits or cannot be indexed. The absolute database path in the generated hook configuration keeps retrieval consistent across working directories.
 
 ## Gateway extension point
 
-A future model-request proxy can construct the same `ContextEngine` and archive provider payloads through its public API. Provider adapters, streaming, conversation budgets and prompt-cache behavior belong in that application. The current executable serves local tools over stdio. Capture is available through the CLI, MCP, and the two local agent adapters. The provider proxy is a later milestone.
+A future model-request proxy can construct the same `ContextEngine` and archive provider payloads through its public API. Provider adapters, streaming, conversation budgets and prompt-cache behavior belong in that application. The current executable serves local tools over stdio. Capture is available through the CLI, MCP, and the three local agent adapters. The provider proxy is a later milestone.
 
 ## Dependencies
 

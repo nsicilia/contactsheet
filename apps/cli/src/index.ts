@@ -6,14 +6,14 @@ import { parseArgs, TextDecoder } from 'node:util';
 import { ContextEngine, maxBytes } from '@ctx/core';
 import { SqliteArchive } from '@ctx/storage';
 import { capture } from './capture.js';
-import { agentName, hookConfig, route } from './hooks.js';
+import { agentName, hookConfig, mcpConfig, route } from './hooks.js';
 
 const usage = `contactsheet init
 contactsheet index [file] [--source label] [--session label]    (defaults to stdin)
 contactsheet search <query> [--id archive-id] [--limit n]
 contactsheet read <archive-id> [--line n] [--count n] [--offset n]
 contactsheet serve
-contactsheet hook-config <claude|codex>
+contactsheet hook-config <claude|codex|gemini>
 Use --db <path> with any command, or set CONTEXT_DB. Default: .context/archive.sqlite`;
 
 async function readInput(file?: string) {
@@ -73,9 +73,7 @@ async function main() {
     let output: unknown;
     switch (command) {
       case 'init':
-        output = { mcpServers: { 'contactsheet': {
-          command: process.execPath, args: [fileURLToPath(import.meta.url), 'serve', '--db', path],
-        } } };
+        output = mcpConfig(cli, path);
         break;
       case 'index': {
         const file = positionals[0];
