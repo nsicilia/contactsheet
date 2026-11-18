@@ -11,11 +11,15 @@
     "build": "tsc -b",
     "contactsheet": "node apps/cli/dist/index.js",
     "ctx": "node apps/cli/dist/index.js",
-    "test": "pnpm run build && node --test tests/*.test.mjs"
+    "test": "pnpm run build && node --test tests/*.test.mjs",
+    "plugin": "pnpm run build && node scripts/install-plugin.mjs",
+    "plugins:pack": "pnpm run build && node scripts/package-plugins.mjs"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@types/node": "24.19.2",
-    "typescript": "5.9.3",
-    "@modelcontextprotocol/sdk": "1.32.2"
+    "esbuild": "0.25.12",
+    "fflate": "0.8.2",
+    "typescript": "5.9.3"
   }
 }

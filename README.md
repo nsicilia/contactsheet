@@ -2,6 +2,27 @@
 
 Archive a command’s complete output on your machine and give a coding agent a short preview. The agent can search for a failure and read the original lines from the same SQLite file. ContactSheet runs from a checkout with Node.js 24.12+ (24.x, with FTS5) and pnpm 10.13.1.
 
+## Install an agent plugin
+
+From this checkout, run `pnpm install --frozen-lockfile` once, then choose your host:
+
+| Host | Install |
+| --- | --- |
+| Codex | `pnpm plugin codex` |
+| Gemini CLI | `pnpm plugin gemini` |
+| Qwen Code | `pnpm plugin qwen` |
+| Pi | `pnpm plugin pi` |
+| OMP | `pnpm plugin omp` |
+| OpenCode 2 | `pnpm plugin opencode` |
+| GitHub Copilot CLI | `pnpm plugin copilot` |
+| Kiro CLI | `pnpm plugin kiro` |
+| VS Code with Copilot | `pnpm plugin vscode` |
+| ZCode | `pnpm plugin zcode` |
+
+The command builds the local package and opens the host’s native installer. Install the host first and keep Node 24 on its PATH. Restart the host, approve the plugin or hooks if prompted, and search for `context_search` in its tools. For Kiro IDE, run `pnpm plugins:pack`, then import `dist/plugins/portable` in Powers → Add Custom Power. The Kiro Power provides archive tools and a skill. Use the CLI pipe below for build capture in Kiro.
+
+Use `pnpm plugins:pack` to build all packages without installing them. Bundles include the runtime and license notices. Gemini, Qwen, Pi and OMP support linking local packages, so keep the checkout at a stable path. Rebuild to refresh linked packages, reinstall copied packages, and use the host’s plugin manager to uninstall. Remove a previous manual ContactSheet registration when switching to the plugin to avoid duplicate tools.
+
 ## Run it
 
 From the repository root:

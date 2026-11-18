@@ -13,7 +13,7 @@ contactsheet index [file] [--source label] [--session label]    (defaults to std
 contactsheet search <query> [--id archive-id] [--limit n]
 contactsheet read <archive-id> [--line n] [--count n] [--offset n]
 contactsheet serve
-contactsheet hook-config <claude|codex|gemini>
+contactsheet hook-config <claude|codex|gemini|qwen|copilot|zcode>
 Use --db <path> with any command, or set CONTEXT_DB. Default: .context/archive.sqlite`;
 
 async function readInput(file?: string) {
