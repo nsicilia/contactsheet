@@ -17,9 +17,12 @@ From this checkout, run `pnpm install --frozen-lockfile` once, then choose your 
 | GitHub Copilot CLI | `pnpm plugin copilot` |
 | Kiro CLI | `pnpm plugin kiro` |
 | VS Code with Copilot | `pnpm plugin vscode` |
+| IntelliJ IDEA (Junie or AI Assistant) | `pnpm plugin intellij /path/to/project` |
 | ZCode | `pnpm plugin zcode` |
 
-The command builds the local package and opens the host’s native installer. Install the host first and keep Node 24 on its PATH. Restart the host, approve the plugin or hooks if prompted, and search for `context_search` in its tools. For Kiro IDE, run `pnpm plugins:pack`, then import `dist/plugins/portable` in Powers → Add Custom Power. The Kiro Power provides archive tools and a skill. Use the CLI pipe below for build capture in Kiro.
+For IntelliJ IDEA, pass the directory you open in the IDE (defaults to this checkout). The installer registers the archive tools in the project’s Junie MCP configuration. If the file already contains other settings, follow the printed merge instructions. For AI Assistant, paste the printed JSON into **Settings → Tools → AI Assistant → Model Context Protocol (MCP) → Add → STDIO**. Keep the ContactSheet checkout in place. Ask the agent to use `context_search` to check the connection. Use the CLI pipe below for build capture. [JetBrains Junie setup](https://junie.jetbrains.com/docs/junie-ide-plugin.html) · [AI Assistant setup](https://www.jetbrains.com/help/ai-assistant/mcp.html)
+
+For the other hosts, the command builds the local package and opens the host’s native installer. Install the host first and keep Node 24 on its PATH. Restart the host, approve the plugin or hooks if prompted, and search for `context_search` in its tools. For Kiro IDE, run `pnpm plugins:pack`, then import `dist/plugins/portable` in Powers → Add Custom Power. The Kiro Power provides archive tools and a skill. Use the CLI pipe below for build capture in Kiro.
 
 Use `pnpm plugins:pack` to build all packages without installing them. Bundles include the runtime and license notices. Gemini, Qwen, Pi and OMP support linking local packages, so keep the checkout at a stable path. Rebuild to refresh linked packages, reinstall copied packages, and use the host’s plugin manager to uninstall. Remove a previous manual ContactSheet registration when switching to the plugin to avoid duplicate tools.
 

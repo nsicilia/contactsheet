@@ -25,3 +25,26 @@ test('packaged Pi tools index, search and read from the same workspace', async (
     await rm(cwd, { recursive: true, force: true });
   }
 });
+
+test('IntelliJ installer writes a project registration and protects existing settings', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const { readFile, writeFile } = await import('node:fs/promises');
+  const project = await mkdtemp(join(tmpdir(), 'idea project '));
+  const file = join(project, '.junie/mcp/mcp.json');
+  const run = () => spawnSync(process.execPath, ['scripts/install-plugin.mjs', 'intellij', project],
+    { encoding: 'utf8', env: { ...process.env, CONTEXT_DB: '.context/archive.sqlite' } });
+  try {
+    const first = run();
+    assert.equal(first.status, 0, first.stderr);
+    const config = JSON.parse(first.stdout);
+    assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), config);
+    assert.equal(config.mcpServers.contactsheet.args.at(-1), join(project, '.context/archive.sqlite'));
+    assert.equal(run().status, 0);
+    const other = '{"mcpServers":{"other":{"command":"example"}}}';
+    await writeFile(file, other);
+    assert.equal(run().status, 1);
+    assert.equal(await readFile(file, 'utf8'), other);
+  } finally {
+    await rm(project, { recursive: true, force: true });
+  }
+});
