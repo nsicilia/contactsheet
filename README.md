@@ -125,6 +125,8 @@ CLI indexing returns a SHA-256 hash, source, session, timestamp, byte and line c
 
 In the 3,600-line failing-build fixture, the first reply identified the failure and preserved exit code 23. When the diagnostic on line 501 was missing from the preview, the agent could still search for its tag and read it.
 
+![The first build reply used 652 of the original 178,862 bytes.](docs/benchmark-capture.svg)
+
 | Task | Raw output | ContactSheet response | Fewer bytes |
 | --- | ---: | ---: | ---: |
 | Identify the build failure | 178,862 B | 652 B | **99.64%** |
@@ -132,6 +134,8 @@ In the 3,600-line failing-build fixture, the first reply identified the failure 
 | Read a short passing test run | 2,326 B | 2,326 B | 0% |
 
 **When the answer requires a lookup.** In a separate live subscription test, each client identified a build failure and an earlier shipment reference in a 5,943-byte log. The raw run received the whole log. The capture run received a preview and had to search and read the archive. Both paths returned exact answers in all three matched pairs per client.
+
+![On the hidden-clue task, retrieval increased median input tokens by 146.35% for Codex and 72.73% for Claude Code.](docs/benchmark-retrieval.svg)
 
 | Client | Median additional input tokens with retrieval (%) | Median additional elapsed time |
 | --- | ---: | ---: |
@@ -146,6 +150,8 @@ For this small log, the extra model turns outweighed the shorter initial reply. 
 The Claude Code, Codex and Gemini hook tests each executed the same failing build once. Byte counts cover the receipt and, in the second row, both serialized MCP responses. They exclude prompts, requests and protocol framing. The searchable SQLite file occupied 987,136 bytes. Reading the whole log back into chat gives up the context saving. The passing-suite size varies with timing and runner formatting.
 
 In a separate paired review on Apple silicon, both runs detected the two seeded queue-worker bugs and proposed fixes. The guided review also addressed a failed deletion after successful delivery.
+
+![Both reviews found two defects. Total tokens fell from 2,620 to 1,801 with guidance.](docs/benchmark-guidance.svg)
 
 | Same review task, fresh conversation | Defects found | Prompt tokens | Generated tokens | Total tokens |
 | --- | ---: | ---: | ---: | ---: |

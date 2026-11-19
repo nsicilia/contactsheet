@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="246" viewBox="0 0 840 246" role="img" aria-labelledby="title desc">
+<title id="title">Token use for the paired code review</title>
+<desc id="desc">Baseline used 2,620 total tokens. Guided used 1,801. Stacked bars show prompt and generated tokens.</desc>
+<rect x="0" y="0" width="840" height="246" rx="14" fill="#18312c"/>
+<text x="30" y="38" fill="#b5c7be" font-family="ui-monospace, Menlo, monospace" font-size="16" font-weight="700">CODING GUIDANCE   /   ONE PAIRED REVIEW</text>
+<text x="29" y="83" fill="#f7f3e5" font-family="system-ui, sans-serif" font-size="33" font-weight="700">Both reviews found 2 of 2 defects</text>
+<text x="30" y="137" fill="#f7f3e5" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Baseline</text>
+<rect x="165" y="112" width="34.97" height="31" rx="0" fill="#ffb66f"/>
+<rect x="199.97" y="112" width="452.35" height="31" rx="0" fill="#bceaac"/>
+<text x="666.3199999999999" y="136" fill="#f7f3e5" font-family="system-ui, sans-serif" font-size="23" font-weight="700">2,620</text>
+<text x="30" y="191" fill="#f7f3e5" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Guided</text>
+<rect x="165" y="166" width="59.15" height="31" rx="0" fill="#ffb66f"/>
+<rect x="224.15" y="166" width="275.84" height="31" rx="0" fill="#bceaac"/>
+<text x="513.986" y="190" fill="#f7f3e5" font-family="system-ui, sans-serif" font-size="23" font-weight="700">1,801</text>
+<rect x="165" y="218" width="12" height="12" rx="2" fill="#ffb66f"/>
+<text x="186" y="229" fill="#f7f3e5" font-family="system-ui, sans-serif" font-size="16" font-weight="500">Prompt tokens</text>
+<rect x="357" y="218" width="12" height="12" rx="2" fill="#bceaac"/>
+<text x="378" y="229" fill="#f7f3e5" font-family="system-ui, sans-serif" font-size="16" font-weight="500">Generated tokens</text>
+</svg>

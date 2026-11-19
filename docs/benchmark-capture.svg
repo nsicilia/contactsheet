@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="246" viewBox="0 0 840 246" role="img" aria-labelledby="title desc">
+<title id="title">Build capture: 99.64% fewer bytes</title>
+<desc id="desc">Ten strips represent the original 178,862 bytes. The amber segment represents the 652-byte receipt.</desc>
+<rect x="0" y="0" width="840" height="246" rx="14" fill="#18312c"/>
+<text x="30" y="39" fill="#b5c7be" font-family="ui-monospace, Menlo, monospace" font-size="17" font-weight="700">BUILD CAPTURE   /   FIRST REPLY</text>
+<text x="28" y="123" fill="#bceaac" font-family="system-ui, sans-serif" font-size="76" font-weight="700">99.64%</text>
+<text x="32" y="158" fill="#f7f3e5" font-family="system-ui, sans-serif" font-size="26" font-weight="700">fewer response bytes</text>
+<text x="32" y="210" fill="#f7f3e5" font-family="system-ui, sans-serif" font-size="20" font-weight="500">178,862 B raw  →  652 B returned</text>
+<rect x="504" y="26" width="298" height="14" rx="2" fill="#bceaac"/>
+<rect x="504" y="46" width="298" height="14" rx="2" fill="#bceaac"/>
+<rect x="504" y="66" width="298" height="14" rx="2" fill="#bceaac"/>
+<rect x="504" y="86" width="298" height="14" rx="2" fill="#bceaac"/>
+<rect x="504" y="106" width="298" height="14" rx="2" fill="#bceaac"/>
+<rect x="504" y="126" width="298" height="14" rx="2" fill="#bceaac"/>
+<rect x="504" y="146" width="298" height="14" rx="2" fill="#bceaac"/>
+<rect x="504" y="166" width="298" height="14" rx="2" fill="#bceaac"/>
+<rect x="504" y="186" width="298" height="14" rx="2" fill="#bceaac"/>
+<rect x="504" y="206" width="298" height="14" rx="2" fill="#bceaac"/>
+<rect x="504" y="206" width="10.86" height="14" rx="0" fill="#ffb66f"/>
+<rect x="506" y="229" width="10" height="10" rx="2" fill="#ffb66f"/>
+<text x="525" y="239" fill="#f7f3e5" font-family="ui-monospace, Menlo, monospace" font-size="13" font-weight="500">returned portion</text>
+</svg>

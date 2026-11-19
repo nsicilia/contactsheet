@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="246" viewBox="0 0 840 246" role="img" aria-labelledby="title desc">
+<title id="title">Retrieval increased input tokens on the small fixture</title>
+<desc id="desc">Relative to each raw run, capture plus retrieval used 146.35% more input for Codex and 72.73% more for Claude Code.</desc>
+<rect x="0" y="0" width="840" height="246" rx="14" fill="#f5efdd"/>
+<text x="30" y="37" fill="#643819" font-family="ui-monospace, Menlo, monospace" font-size="16" font-weight="700">HIDDEN-CLUE RETRIEVAL   /   MEDIAN OF 3 PAIRS</text>
+<text x="29" y="83" fill="#1a302b" font-family="system-ui, sans-serif" font-size="36" font-weight="700">Input tokens per task</text>
+<text x="30" y="137" fill="#1a302b" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Codex</text>
+<rect x="198" y="114" width="184" height="29" rx="0" fill="#526d60"/>
+<rect x="382" y="114" width="269.28" height="29" rx="0" fill="#b05220"/>
+<text x="663.284" y="137" fill="#833711" font-family="system-ui, sans-serif" font-size="21" font-weight="700">+146.35%</text>
+<text x="30" y="191" fill="#1a302b" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Claude Code</text>
+<rect x="198" y="168" width="184" height="29" rx="0" fill="#526d60"/>
+<rect x="382" y="168" width="133.82" height="29" rx="0" fill="#b05220"/>
+<text x="527.8232" y="191" fill="#833711" font-family="system-ui, sans-serif" font-size="21" font-weight="700">+72.73%</text>
+<rect x="198" y="217" width="13" height="13" rx="2" fill="#526d60"/>
+<text x="218" y="229" fill="#1a302b" font-family="system-ui, sans-serif" font-size="16" font-weight="500">Raw run = 100%</text>
+<rect x="425" y="217" width="13" height="13" rx="2" fill="#b05220"/>
+<text x="445" y="229" fill="#1a302b" font-family="system-ui, sans-serif" font-size="16" font-weight="500">Extra with retrieval</text>
+</svg>
