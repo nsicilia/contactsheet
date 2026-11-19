@@ -12,7 +12,7 @@ MCP client ── stdio tools ──┘
 | --- | --- |
 | `packages/core` | Public engine, archive contract, hashing, input bounds and deterministic compression |
 | `packages/storage` | SQLite schema versioning, transactional writes, BM25 retrieval and exact paged reads |
-| `packages/mcp` | Official MCP SDK stdio transport, argument schemas and three tools |
+| `packages/mcp` | Official MCP SDK stdio transport, argument schemas and archive and coding tools |
 | `apps/cli` | Project-local bootstrap, agent hooks, shell output capture and server launch |
 
 ## From capture to retrieval
@@ -31,9 +31,13 @@ For a supported build or test, a pre-execution hook rewrites the shell command. 
 
 The filter spools to a private file next to the configured project database. Small outputs are replayed as bytes. Larger valid text uses the same engine and archive as explicit indexing. Once a receipt is available the temporary file is removed. A raw-file reference preserves output that exceeds the archive's limits or cannot be indexed. The absolute database path in the generated hook configuration keeps retrieval consistent across working directories.
 
-## Gateway extension point
+## Model gateway (Phase 3)
 
-A future model-request proxy can construct the same `ContextEngine` and archive provider payloads through its public API. Provider adapters, streaming, conversation budgets and prompt-cache behavior belong in that application. The current executable serves local tools over stdio. Capture is available through the CLI, MCP, and the three local agent adapters. The provider proxy is a later milestone.
+Each listener serves one explicitly selected provider. OpenAI uses POST /v1/responses and /v1/responses/input_tokens. Anthropic uses POST /v1/messages and /v1/messages/count_tokens. These adapters pass provider authentication, Anthropic version and beta headers, and supported input fields to the counter. The default adapter accepts Gemini Developer API v1 and v1beta `generateContent`, `streamGenerateContent` and `countTokens` requests. It forwards per-request authentication to a fixed upstream origin. Clients retain ownership of conversation history. The gateway uses the same archive and content-derived IDs as the CLI and MCP server, so repeated requests can recover the same original turn.
+
+Generation admission uses the provider’s full-request counter. If over budget, the proxy archives large (at least 512 serialized UTF-8 bytes) historical model turns consisting exclusively of text parts. The stored representation is JSON for the complete turn. The last user prompt and everything after it are protected. The proxy performs at most two count calls per generation. It declines over-budget requests when the remaining context cannot fit. This budget applies to provider-counted input and reserves no output tokens.
+
+Responses stream with backpressure. The gateway forwards the provider’s usage metadata, including cache counters when supplied. Local logs contain counts, duration and status. The gateway accepts request bodies up to 8 MiB and limits upstream work to five minutes. It supports SDK and CLI clients on the same machine; browser clients and public multi-user hosting are outside this implementation.
 
 ## Dependencies
 

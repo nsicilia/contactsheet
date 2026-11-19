@@ -17,6 +17,7 @@ contactsheet compare <baseline.json> <guided.json>
 contactsheet board [on|off|import|config] [--from transcript-directory]
 contactsheet statusline
 contactsheet serve
+contactsheet gateway [--provider gemini|openai|anthropic] --budget <tokens> [--port 8787] [--upstream <origin>]
 contactsheet hook-config <claude|codex|gemini|qwen|copilot|zcode>
 Use --db <path> with any command, or set CONTEXT_DB. Default: .context/archive.sqlite`;
 
@@ -48,7 +49,7 @@ async function main() {
     return;
   }
   const flags: Record<string, string[]> = {
-    board: ['from'], statusline: [], coding: [], compare: [], init: [], serve: [], 'hook-config': [], hook: [],
+    gateway: ['provider', 'budget', 'port', 'upstream'], board: ['from'], statusline: [], coding: [], compare: [], init: [], serve: [], 'hook-config': [], hook: [],
     capture: ['source', 'session'], index: ['source', 'session'],
     search: ['id', 'limit'], read: ['line', 'count', 'offset'],
   };
@@ -127,6 +128,15 @@ async function main() {
       case 'read':
         output = engine.read(positionals[0]!, Number(values.line ?? 1), Number(values.count ?? 20), Number(values.offset ?? 0));
         break;
+      case 'gateway': {
+        const { gateway } = await import('./gateway.js');
+        const server = await gateway(engine, Number(values.budget), Number(values.port ?? 8787),
+          values.upstream, values.provider);
+        const address = server.address();
+        console.error('ContactSheet ' + (values.provider ?? 'gemini') + ' gateway listening on http://127.0.0.1:' + (typeof address === 'object' && address?.port));
+        await new Promise<void>(done => server.once('close', done));
+        return;
+      }
       case 'serve': {
         const { serve } = await import('@ctx/mcp');
         const server = await serve(engine);

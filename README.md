@@ -4,7 +4,7 @@ Keep the full build log on your machine. Give your coding agent a short failure 
 
 ![Three frames from the benchmark: a 178,862-byte build log, a 652-byte agent reply, and the diagnostic retrieved at line 501.](docs/contactsheet.svg)
 
-[Install](#install-an-agent-plugin) · [Try it](#run-it) · [Benchmarks](#measured-improvement) · [Coding guidance](#built-in-coding-guidance) · [Architecture](ARCHITECTURE.md)
+[Install](#install-an-agent-plugin) · [Try it](#run-it) · [Model gateway](#self-hosted-model-gateway) · [Benchmarks](#measured-improvement) · [Coding guidance](#built-in-coding-guidance) · [Architecture](ARCHITECTURE.md)
 
 ## Install an agent plugin
 
@@ -57,6 +57,40 @@ The search returns the archive ID and line number. In a connected agent using th
 > Read the line containing “checkout timed out” from the checkout log.
 
 Or use `pnpm --silent ctx read <archive-id> --line 2 --count 1`. For an existing file, run `pnpm --silent ctx index build.log`.
+
+<a id="self-hosted-gemini-gateway"></a>
+
+## Self-hosted model gateway
+
+Start one local gateway per provider from the ContactSheet checkout. Use the same absolute database path for the gateway and the agent’s ContactSheet MCP tools so the agent can recover archived turns with `context_read`.
+
+| Client | Provider | Example launch command |
+| --- | --- | --- |
+| Codex CLI | OpenAI Responses | `pnpm ctx gateway --provider openai --port 8788 --budget 32000 --db /path/to/archive.sqlite` |
+| Claude Code | Anthropic Messages | `pnpm ctx gateway --provider anthropic --port 8789 --budget 32000 --db /path/to/archive.sqlite` |
+| Gemini CLI | Gemini Developer API (default) | `pnpm ctx gateway --port 8787 --budget 32000 --db /path/to/archive.sqlite` |
+
+Run `pnpm build` first. In a second terminal, start the client from the target project. These examples use provider API credentials. Choose a model your API account can access and a budget large enough for the client's instructions and tools.
+
+**Codex CLI.** Add this provider table to `~/.codex/config.toml`, then launch `codex -c 'model_provider="contactsheet"' -m YOUR_API_MODEL` with `OPENAI_API_KEY` set. This selects the gateway for that invocation.
+
+```toml
+[model_providers.contactsheet]
+name = "ContactSheet"
+base_url = "http://127.0.0.1:8788/v1"
+env_key = "OPENAI_API_KEY"
+wire_api = "responses"
+```
+
+**Claude Code.** With `ANTHROPIC_API_KEY` set, launch `ANTHROPIC_BASE_URL=http://127.0.0.1:8789 claude`.
+
+**Gemini CLI.** In Gemini API-key mode, launch `GOOGLE_GEMINI_BASE_URL=http://127.0.0.1:8787 gemini`.
+
+**What to expect.** The gateway counts input with the selected provider before generation. Over budget, it archives eligible older plain-text assistant replies, substitutes retrieval IDs and counts again. Instructions, user messages, the active exchange, calls, results and signed thinking blocks stay intact. HTTP 413 means the protected context exceeds the budget. Codex uses HTTP Responses streaming and explicit client-managed history. Server-managed conversations, stored prompts and previous-response references are outside this adapter.
+
+The listener binds to IPv4 loopback. The default upstream is the selected provider’s API. **The provider receives the original input for counting**, including history later compacted for generation. To run a fixture or compatible server, pass its HTTPS origin or loopback HTTP origin via `--upstream`; it must implement both generation and token counting.
+
+Generation responses include `x-contactsheet-input-tokens` and `x-contactsheet-archived`. Gateway stderr reports counts and elapsed time. Provider output streams through unchanged, including any usage and cache metrics. [OpenAI input token counting](https://developers.openai.com/api/reference/cli/resources/responses/subresources/input_tokens/methods/count) · [Anthropic token counting](https://platform.claude.com/docs/en/api/typescript/beta/messages/count_tokens) · [Gemini token counting](https://ai.google.dev/api/tokens)
 
 ## Automatic build and test capture
 
