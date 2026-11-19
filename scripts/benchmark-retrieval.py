@@ -1,6 +1,7 @@
 """Compare raw logs with ContactSheet capture + MCP retrieval on subscription clients."""
 import argparse
 import json
+import os
 import secrets
 import shlex
 import shutil
@@ -32,11 +33,18 @@ def fixture():
     return shipment, '\n'.join(lines) + '\n'
 
 
-def preflight(folder, log, shipment):
+def preflight(folder, log, shipment, current_default):
     db = str(folder / 'preflight.sqlite')
+    env = os.environ.copy()
+    if current_default:
+        env.pop('CONTACTSHEET_PASSTHROUGH_BYTES', None)
+        actual = subprocess.check_output([NODE, str(CLI), 'capture', '--db', db], input=log.encode(), env=env)
+        if actual != log.encode():
+            raise ValueError('Expected the whole fixture under the current default')
+        return
     def cli(*args, data=None):
         return json.loads(subprocess.check_output(
-            [NODE, str(CLI), *args, '--db', db], input=data, text=True))
+            [NODE, str(CLI), *args, '--db', db], input=data, text=True, env={**os.environ, 'CONTACTSHEET_PASSTHROUGH_BYTES': '4096'}))
     receipt = cli('capture', data=log)
     if shipment in json.dumps(receipt) or ERROR not in receipt['preview']:
         raise ValueError('Fixture did not produce the required preview')
@@ -46,14 +54,15 @@ def preflight(folder, log, shipment):
         raise ValueError('Failed to retrieve shipment from the original line')
 
 
-def run(host, mode, cwd, log, shipment):
+def run(host, mode, cwd, log, shipment, current_default):
     cwd.mkdir()
     (cwd / 'fixture.log').write_text(log)
     db = str(cwd / 'archive.sqlite')
     server_args = [str(CLI), 'serve', '--db', db]
     wrapper = cwd / 'read-fixture'
+    env_args = ['env', '-u', 'CONTACTSHEET_PASSTHROUGH_BYTES'] if current_default else ['env', 'CONTACTSHEET_PASSTHROUGH_BYTES=4096']
     command = ('cat fixture.log' if mode == 'raw' else
-               shlex.join([NODE, str(CLI), 'capture', '--db', db]) + ' < fixture.log')
+               shlex.join([*env_args, NODE, str(CLI), 'capture', '--db', db]) + ' < fixture.log')
     wrapper.write_text('#!/bin/sh\nset -eu\nprintf x >> calls\n' + command + ' > reply\ncat reply\n')
     wrapper.chmod(0o700)
     if host == 'codex':
@@ -112,7 +121,7 @@ def run(host, mode, cwd, log, shipment):
                     failures.append({'tool_use_id': b.get('tool_use_id'), 'error': 'tool failed'})
         elif kind == 'result':
             usage, answer = event.get('usage') or {}, event.get('result', '')
-    expected = ['shell'] if mode == 'raw' else ['shell', 'context_search', 'context_read']
+    expected = ['shell'] if mode == 'raw' or current_default else ['shell', 'context_search', 'context_read']
     calls = cwd / 'calls'
     exact = answer.strip() == ERROR + '\n' + shipment
     # Count retries in the totals, but require successful execution and the requested path.
@@ -127,6 +136,7 @@ def run(host, mode, cwd, log, shipment):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--current-default', action='store_true', help='compare raw output with the shipping capture policy')
     parser.add_argument('--check', action='store_true', help='local fixture check only')
     parser.add_argument('--client', choices=['both','codex','claude'], default='both')
     args = parser.parse_args()
@@ -139,8 +149,11 @@ def main():
     print('Results:', folder, flush=True)
     samples = [fixture() for _ in range(3)]
     for shipment, log in samples:
-        preflight(folder, log, shipment)
-    print('All three previews omit the clue; all three archived clues are retrievable.', flush=True)
+        preflight(folder, log, shipment, args.current_default)
+    if args.current_default:
+        print('All three fixtures pass through byte-for-byte.', flush=True)
+    else:
+        print('All three previews omit the clue; all three archived clues are retrievable.', flush=True)
     if args.check:
         return
     for host in hosts:
@@ -148,7 +161,7 @@ def main():
         for n, (shipment, log) in enumerate(samples, 1):
             pair = {}
             for mode in (['raw','capture'] if n % 2 else ['capture','raw']):
-                result = run(host, mode, folder / f'{host}-{n}-{mode}', log, shipment)
+                result = run(host, mode, folder / f'{host}-{n}-{mode}', log, shipment, args.current_default)
                 rows.append(dict(pair=n, **result))
                 pair[mode] = result
                 print(host, n, json.dumps(result), flush=True)

@@ -1,19 +1,47 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="840" height="246" viewBox="0 0 840 246" role="img" aria-labelledby="title desc">
-<title id="title">Retrieval increased input tokens on the small fixture</title>
-<desc id="desc">Relative to each raw run, capture plus retrieval used 146.35% more input for Codex and 72.73% more for Claude Code.</desc>
-<rect x="0" y="0" width="840" height="246" rx="14" fill="#f5efdd"/>
-<text x="30" y="37" fill="#643819" font-family="ui-monospace, Menlo, monospace" font-size="16" font-weight="700">HIDDEN-CLUE RETRIEVAL   /   MEDIAN OF 3 PAIRS</text>
-<text x="29" y="83" fill="#1a302b" font-family="system-ui, sans-serif" font-size="36" font-weight="700">Input tokens per task</text>
-<text x="30" y="137" fill="#1a302b" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Codex</text>
-<rect x="198" y="114" width="184" height="29" rx="0" fill="#526d60"/>
-<rect x="382" y="114" width="269.28" height="29" rx="0" fill="#b05220"/>
-<text x="663.284" y="137" fill="#833711" font-family="system-ui, sans-serif" font-size="21" font-weight="700">+146.35%</text>
-<text x="30" y="191" fill="#1a302b" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Claude Code</text>
-<rect x="198" y="168" width="184" height="29" rx="0" fill="#526d60"/>
-<rect x="382" y="168" width="133.82" height="29" rx="0" fill="#b05220"/>
-<text x="527.8232" y="191" fill="#833711" font-family="system-ui, sans-serif" font-size="21" font-weight="700">+72.73%</text>
-<rect x="198" y="217" width="13" height="13" rx="2" fill="#526d60"/>
-<text x="218" y="229" fill="#1a302b" font-family="system-ui, sans-serif" font-size="16" font-weight="500">Raw run = 100%</text>
-<rect x="425" y="217" width="13" height="13" rx="2" fill="#b05220"/>
-<text x="445" y="229" fill="#1a302b" font-family="system-ui, sans-serif" font-size="16" font-weight="500">Extra with retrieval</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 224" role="img" aria-labelledby="title desc">
+  <title id="title">Hidden-clue benchmark: median changes versus raw output</title>
+  <desc id="desc">At 4 KiB, forced lookup added 146.35% input tokens and 8.07 seconds for Codex, and 72.73% and 6.40 seconds for Claude Code. At 8 KiB the log passed through. Codex used 0.02% fewer tokens and took 0.41 seconds less; Claude Code used the same tokens and took 0.45 seconds more.</desc>
+  <defs>
+    <pattern id="perfs" width="34" height="12" patternUnits="userSpaceOnUse"><rect x="7" y="2" width="18" height="8" rx="2" fill="#a7afa9"/></pattern>
+  </defs>
+  <rect width="960" height="224" rx="14" fill="#17221f"/>
+  <path d="M14 12h932v12H14z M14 200h932v12H14z" fill="url(#perfs)"/>
+
+  <style>
+    text { fill: #17221f; font-family: system-ui, sans-serif }
+    .label, .note { fill: #374f47; font-family: ui-monospace, monospace; font-size: 15px }
+    .value { font-size: 30px; font-weight: bold }
+  </style>
+  <g transform="translate(22 38)">
+    <rect width="448" height="146" rx="4" fill="#f5f0df"/>
+    <text class="label" x="20" y="27">4 KiB / FORCED LOOKUP</text>
+    <path d="M20 38h408" stroke="#81958b"/>
+    <text class="note" x="20" y="62">vs. raw output</text>
+    <text class="note" x="282" y="62" text-anchor="end">Input tokens</text>
+    <text class="note" x="424" y="62" text-anchor="end">Time</text>
+    <text x="20" y="94" font-size="21" font-weight="600">Codex</text>
+    <rect x="159" y="71" width="130" height="29" rx="3" fill="#f6c69e"/>
+    <text x="282" y="94" text-anchor="end" font-size="24" font-weight="700">+146.35%</text>
+    <text x="424" y="94" text-anchor="end" font-size="21">+8.07 s</text>
+    <text x="20" y="129" font-size="21" font-weight="600">Claude Code</text>
+    <rect x="159" y="106" width="130" height="29" rx="3" fill="#f6c69e"/>
+    <text x="282" y="129" text-anchor="end" font-size="24" font-weight="700">+72.73%</text>
+    <text x="424" y="129" text-anchor="end" font-size="21">+6.40 s</text>
+  </g>
+  <g transform="translate(490 38)">
+    <rect width="448" height="146" rx="4" fill="#f5f0df"/>
+    <text class="label" x="20" y="27">8 KiB / CURRENT DEFAULT</text>
+    <path d="M20 38h408" stroke="#81958b"/>
+    <text class="note" x="20" y="62">vs. raw output</text>
+    <text class="note" x="282" y="62" text-anchor="end">Input tokens</text>
+    <text class="note" x="424" y="62" text-anchor="end">Time</text>
+    <text x="20" y="94" font-size="21" font-weight="600">Codex</text>
+    <rect x="159" y="71" width="130" height="29" rx="3" fill="#cde3d5"/>
+    <text x="282" y="94" text-anchor="end" font-size="24" font-weight="700">−0.02%</text>
+    <text x="424" y="94" text-anchor="end" font-size="21">−0.41 s</text>
+    <text x="20" y="129" font-size="21" font-weight="600">Claude Code</text>
+    <rect x="159" y="106" width="130" height="29" rx="3" fill="#cde3d5"/>
+    <text x="282" y="129" text-anchor="end" font-size="24" font-weight="700">0.00%</text>
+    <text x="424" y="129" text-anchor="end" font-size="21">+0.45 s</text>
+  </g>
 </svg>

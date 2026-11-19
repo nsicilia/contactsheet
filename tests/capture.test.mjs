@@ -85,15 +85,22 @@ for (const agent of ['claude', 'codex', 'gemini']) {
 
 test('short results pass through byte-for-byte without creating an archive', t => {
   const { run, cwd } = fixture(t);
-  for (const bytes of [Buffer.alloc(0), Buffer.from([0, 255, 10]), Buffer.alloc(4096, 65)]) {
+  for (const bytes of [Buffer.alloc(0), Buffer.from([0, 255, 10]), Buffer.alloc(5943, 65), Buffer.alloc(8192, 65)]) {
     assert.deepEqual(run(['capture'], bytes), bytes);
   }
   assert.deepEqual(readdirSync(cwd), []);
 });
 
+test('capture archives text immediately above the default threshold', t => {
+  const { run } = fixture(t);
+  const receipt = JSON.parse(run(['capture'], Buffer.alloc(8193, 65)));
+  assert.equal(receipt.bytes, 8193);
+  assert.match(receipt.id, /^ctx_/);
+});
+
 test('unindexable output is retained losslessly on disk with a bounded reply', t => {
   const { run } = fixture(t);
-  for (const raw of [Buffer.alloc(4097, 255), Buffer.alloc(8 * 1024 * 1024 + 1), Buffer.alloc(100001, 10)]) {
+  for (const raw of [Buffer.alloc(8193, 255), Buffer.alloc(8 * 1024 * 1024 + 1), Buffer.alloc(100001, 10)]) {
     const result = JSON.parse(run(['capture'], raw));
     assert.equal(result.indexed, false);
     assert.deepEqual(readFileSync(result.rawFile), raw);

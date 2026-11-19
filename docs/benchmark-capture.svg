@@ -1,22 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="840" height="246" viewBox="0 0 840 246" role="img" aria-labelledby="title desc">
-<title id="title">Build capture: 99.64% fewer bytes</title>
-<desc id="desc">Ten strips represent the original 178,862 bytes. The amber segment represents the 652-byte receipt.</desc>
-<rect x="0" y="0" width="840" height="246" rx="14" fill="#18312c"/>
-<text x="30" y="39" fill="#b5c7be" font-family="ui-monospace, Menlo, monospace" font-size="17" font-weight="700">BUILD CAPTURE   /   FIRST REPLY</text>
-<text x="28" y="123" fill="#bceaac" font-family="system-ui, sans-serif" font-size="76" font-weight="700">99.64%</text>
-<text x="32" y="158" fill="#f7f3e5" font-family="system-ui, sans-serif" font-size="26" font-weight="700">fewer response bytes</text>
-<text x="32" y="210" fill="#f7f3e5" font-family="system-ui, sans-serif" font-size="20" font-weight="500">178,862 B raw  →  652 B returned</text>
-<rect x="504" y="26" width="298" height="14" rx="2" fill="#bceaac"/>
-<rect x="504" y="46" width="298" height="14" rx="2" fill="#bceaac"/>
-<rect x="504" y="66" width="298" height="14" rx="2" fill="#bceaac"/>
-<rect x="504" y="86" width="298" height="14" rx="2" fill="#bceaac"/>
-<rect x="504" y="106" width="298" height="14" rx="2" fill="#bceaac"/>
-<rect x="504" y="126" width="298" height="14" rx="2" fill="#bceaac"/>
-<rect x="504" y="146" width="298" height="14" rx="2" fill="#bceaac"/>
-<rect x="504" y="166" width="298" height="14" rx="2" fill="#bceaac"/>
-<rect x="504" y="186" width="298" height="14" rx="2" fill="#bceaac"/>
-<rect x="504" y="206" width="298" height="14" rx="2" fill="#bceaac"/>
-<rect x="504" y="206" width="10.86" height="14" rx="0" fill="#ffb66f"/>
-<rect x="506" y="229" width="10" height="10" rx="2" fill="#ffb66f"/>
-<text x="525" y="239" fill="#f7f3e5" font-family="ui-monospace, Menlo, monospace" font-size="13" font-weight="500">returned portion</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 224" role="img" aria-labelledby="title desc">
+  <title id="title">Reduction in response bytes</title>
+  <desc id="desc">Each bar shows the percentage saved for its task, from zero to one hundred percent.</desc>
+  <defs>
+    <pattern id="perfs" width="34" height="12" patternUnits="userSpaceOnUse"><rect x="7" y="2" width="18" height="8" rx="2" fill="#a7afa9"/></pattern>
+  </defs>
+  <rect width="960" height="224" rx="14" fill="#17221f"/>
+  <path d="M14 12h932v12H14z M14 200h932v12H14z" fill="url(#perfs)"/>
+
+  <style>
+    text { fill: #17221f; font-family: system-ui, sans-serif }
+    .label, .note { fill: #374f47; font-family: ui-monospace, monospace; font-size: 15px }
+    .value { font-size: 30px; font-weight: bold }
+  </style>
+  <rect x="22" y="38" width="291" height="146" rx="4" fill="#f5f0df"/>
+  <text class="label" x="42" y="66">01 / FIRST REPLY</text>
+  <text class="value" x="42" y="108">99.64% fewer</text>
+  <text class="note" x="42" y="140">652 B of 178,862 B</text>
+  <rect x="42" y="154" width="251" height="10" rx="3" fill="#e2dfd0"/>
+  <rect x="42" y="154" width="250.085" height="10" rx="0" fill="#81958b"/>
+  <rect x="334" y="38" width="291" height="146" rx="4" fill="#f5f0df"/>
+  <text class="label" x="354" y="66">02 / WITH LOOKUP</text>
+  <text class="value" x="354" y="108">99.32% fewer</text>
+  <text class="note" x="354" y="140">1,218 B of 178,862 B</text>
+  <rect x="354" y="154" width="251" height="10" rx="3" fill="#e2dfd0"/>
+  <rect x="354" y="154" width="249.291" height="10" rx="0" fill="#81958b"/>
+  <rect x="646" y="38" width="292" height="146" rx="4" fill="#f5f0df"/>
+  <text class="label" x="666" y="66">03 / SHORT LOG</text>
+  <text class="value" x="666" y="108">0% fewer</text>
+  <text class="note" x="666" y="140">2,326 B passed through</text>
+  <rect x="666" y="154" width="252" height="10" rx="3" fill="#e2dfd0"/>
 </svg>

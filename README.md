@@ -97,7 +97,7 @@ Generation responses include `x-contactsheet-input-tokens` and `x-contactsheet-a
 ```mermaid
 flowchart TD
     A["Run a supported build or test"] --> B{"Output size"}
-    B -->|"Up to 4,096 bytes"| C["Return original output"]
+    B -->|"Up to 8,192 bytes by default"| C["Return original output"]
     B -->|"Larger log"| D["Archive locally in SQLite"]
     D --> E["Return preview and archive ID"]
     E --> F["Search for a diagnostic"]
@@ -105,7 +105,7 @@ flowchart TD
     D -. "Indexing limit or failure" .-> H["Return private raw file path"]
 ```
 
-The hook preserves the command’s exit status. Simple foreground commands such as `pnpm run build`, `npm test`, `pytest` and `cargo build` are eligible on Bash or Zsh on macOS and Linux. For pipelines, compound commands or manual capture, pipe the output into ContactSheet:
+Automatic capture returns up to 8,192 bytes verbatim. To keep more output inline, set `CONTACTSHEET_PASSTHROUGH_BYTES` in the process that launches the agent (maximum 8 MiB). Explicit `index` commands still archive small logs. The hook preserves the command’s exit status. Simple foreground commands such as `pnpm run build`, `npm test`, `pytest` and `cargo build` are eligible on Bash or Zsh on macOS and Linux. For pipelines, compound commands or manual capture, pipe the output into ContactSheet:
 
 ```sh
 set -o pipefail
@@ -133,16 +133,18 @@ In the 3,600-line failing-build fixture, the first reply identified the failure 
 | Also search for and read the omitted line | 178,862 B | 1,218 B total | **99.32%** |
 | Read a short passing test run | 2,326 B | 2,326 B | 0% |
 
-**When the answer requires a lookup.** In a separate live subscription test, each client identified a build failure and an earlier shipment reference in a 5,943-byte log. The raw run received the whole log. The capture run received a preview and had to search and read the archive. Both paths returned exact answers in all three matched pairs per client.
+**When a lookup costs more.** In a separate live subscription test, each client identified a build failure and an earlier shipment reference in a 5,943-byte log. The benchmark pins the former 4,096-byte threshold to force retrieval. With the current default, ContactSheet returns this log in full. The raw run received the whole log. The capture run received a preview and had to search and read the archive. Both paths returned exact answers in all three matched pairs per client.
 
-![On the hidden-clue task, retrieval increased median input tokens by 146.35% for Codex and 72.73% for Claude Code.](docs/benchmark-retrieval.svg)
+![Median input-token overhead on the 5,943-byte log fell from +146.35% to −0.02% for Codex and from +72.73% to 0.00% for Claude Code when the capture threshold rose from 4 to 8 KiB.](docs/benchmark-retrieval.svg)
 
-| Client | Median additional input tokens with retrieval (%) | Median additional elapsed time |
+| Client | Forced lookup (4 KiB): input / time vs. raw | Current default (8 KiB): input / time vs. raw |
 | --- | ---: | ---: |
-| Codex | +146.35% | +8.07 s |
-| Claude Code | +72.73% | +6.40 s |
+| Codex | +146.35% / +8.07 s | −0.02% / −0.41 s |
+| Claude Code | +72.73% / +6.40 s | 0.00% / +0.45 s |
 
-For this small log, the extra model turns outweighed the shorter initial reply. Percentages are paired changes in whole-task input tokens, including cached input. Larger logs and tasks answered from the preview can have different results. Reproduce with `python3 scripts/benchmark-retrieval.py` after `pnpm build`.
+On the 8 KiB default rerun, all 12 chats gave the exact failure and shipment reference. Each ran one shell command and made zero archive lookups. The 5,943-byte log was returned byte-for-byte. Input cost matched raw output to within 0.02% on the paired medians; three pairs per client are too few to establish a speed difference.
+
+Each column compares a separate live run with its own raw baseline. Percentages include cached input. After `pnpm build`, run `python3 scripts/benchmark-retrieval.py --current-default` for the shipping policy, or omit the flag to reproduce forced retrieval. The break-even size for larger logs remains unmeasured.
 
 <details>
 <summary><strong>Measurement conditions and coding-guidance comparison</strong></summary>

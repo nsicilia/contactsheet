@@ -5,7 +5,13 @@ import { pipeline } from 'node:stream/promises';
 import { ContextEngine, maxBytes } from '@ctx/core';
 import type { SqliteArchive } from '@ctx/storage';
 
-const passthroughBytes = 4096;
+function passthroughLimit() {
+  const value = process.env.CONTACTSHEET_PASSTHROUGH_BYTES ?? '8192';
+  if (!/^\d+$/.test(value) || Number(value) > maxBytes) {
+    throw new Error('CONTACTSHEET_PASSTHROUGH_BYTES must be an integer from 0 to ' + maxBytes);
+  }
+  return Number(value);
+}
 
 // Spool first. A producer can exceed the index limits or emit invalid UTF-8.
 // Keep its exact bytes available even if indexing fails after the command ran.
@@ -19,7 +25,7 @@ export async function capture(db: string, source: string, session: string, open:
     const { size } = await stat(raw);
     if (size > maxBytes) throw new Error('Output exceeds the 8 MiB search index limit');
     const bytes = await readFile(raw);
-    if (size <= passthroughBytes) {
+    if (size <= passthroughLimit()) {
       process.stdout.write(bytes);
     } else {
       const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
