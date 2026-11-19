@@ -1,33 +1,24 @@
 # ContactSheet
 
-Archive a command’s complete output on your machine and give a coding agent a short preview. The agent can search for a failure and read the original lines from the same SQLite file. ContactSheet runs from a checkout with Node.js 24.12+ (24.x, with FTS5) and pnpm 10.13.1.
+Keep the full build log on your machine. Give your coding agent a short failure report and let it look up the exact lines it needs.
 
-## Measured improvement
+![Three frames from the benchmark: a 178,862-byte build log, a 652-byte agent reply, and the diagnostic retrieved at line 501.](docs/contactsheet.svg)
 
-On a generated 3,600-line failing build, ContactSheet reduced the first reply by **99.64%** and preserved exit code 23. A diagnostic on line 501 was absent from the preview. Searching for its tag and reading the exact line still used **99.32% fewer response bytes** than returning the original build output.
-
-| Task | Raw output | ContactSheet response bytes | Reduction |
-| --- | ---: | ---: | ---: |
-| Identify the build failure from the first reply | 178,862 B | 652 B | 99.64% |
-| Also retrieve the omitted diagnostic | 178,862 B | 1,218 B total | 99.32% |
-| Read this project’s passing test output | 2,326 B | 2,326 B | 0% |
-
-The first two rows use the same build. Each Claude Code, Codex and Gemini hook test executed it once and produced the same result. The second row counts the full receipt and both serialized MCP tool results. In a separate 3,001-line fixture, the preview included all five seeded failures, and paged reads reconstructed the entire log exactly. Short output passes through verbatim up to 4,096 bytes.
-
-These measurements count UTF-8 response bytes. Model prompts, tool requests, protocol framing and billed tokens are outside that count. The fresh SQLite archive for the 178,862-byte fixture occupied 987,136 bytes on disk, including its search index. Reading the whole archive back into chat gives up the context saving. Run `pnpm test` to reproduce the fixture results. The passing-suite byte count varies with test timings and runner formatting.
-
-**Did coding guidance improve the review?** In one paired local-model trial, both reviews correctly found both seeded defects in a queue worker: deleting an item before successful delivery loses retries, and an async callback passed to `forEach` lets the worker return before its work finishes. Both proposed fixes. The guided review also explicitly covered a failed deletion *after* successful delivery.
-
-| Same review task, fresh conversation | Defects found | Prompt tokens | Generated tokens | Total tokens |
-| --- | ---: | ---: | ---: | ---: |
-| Baseline review prompt | 2/2 | 188 | 2,432 | 2,620 |
-| ContactSheet full policy + review workflow | 2/2 | 318 | 1,483 | 1,801 |
-
-The guided run added 130 prompt tokens and used **31.3% fewer total tokens** in this pair. One sample per condition establishes neither a typical saving nor a higher defect detection rate. The model ran locally on Apple silicon, and token counts came from LM Studio. To repeat with the same installed model, run `pnpm build` and `node scripts/benchmark-review.mjs lmstudio-community/Qwen3.8-27B-MLX-4bit`. The script uses the same code, model and user prompt for both runs and adds the compiled ContactSheet instructions to the second system prompt.
+[Install](#install-an-agent-plugin) · [Try it](#run-it) · [Benchmarks](#measured-improvement) · [Coding guidance](#built-in-coding-guidance) · [Architecture](ARCHITECTURE.md)
 
 ## Install an agent plugin
 
-From this checkout, run `pnpm install --frozen-lockfile` once, then choose your host:
+From the ContactSheet checkout, use Node.js **24.12+ (24.x with FTS5)** and **pnpm 10.13.1**. Install dependencies once, then select your host. For example, to use Gemini CLI:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm plugin gemini
+```
+
+Restart the host, approve the plugin or hooks if prompted, and look for `context_search` in its tools.
+
+<details>
+<summary><strong>Install commands for all 11 hosts</strong></summary>
 
 | Host | Install |
 | --- | --- |
@@ -43,65 +34,120 @@ From this checkout, run `pnpm install --frozen-lockfile` once, then choose your 
 | IntelliJ IDEA (Junie or AI Assistant) | `pnpm plugin intellij /path/to/project` |
 | ZCode | `pnpm plugin zcode` |
 
-For IntelliJ IDEA, pass the directory you open in the IDE (defaults to this checkout). The installer registers the archive tools in the project’s Junie MCP configuration. If the file already contains other settings, follow the printed merge instructions. For AI Assistant, paste the printed JSON into **Settings → Tools → AI Assistant → Model Context Protocol (MCP) → Add → STDIO**. Keep the ContactSheet checkout in place. Ask the agent to use `context_search` to check the connection. Use the CLI pipe below for build capture. [JetBrains Junie setup](https://junie.jetbrains.com/docs/junie-ide-plugin.html) · [AI Assistant setup](https://www.jetbrains.com/help/ai-assistant/mcp.html)
+**IntelliJ IDEA.** Pass the directory you open in the IDE. The installer registers Junie in that project or prints merge instructions for an existing configuration. For AI Assistant, paste the printed JSON into **Settings → Tools → AI Assistant → Model Context Protocol (MCP) → Add → STDIO**. Keep the checkout in place and use the CLI pipe below for build capture. [Junie setup](https://junie.jetbrains.com/docs/junie-ide-plugin.html) · [AI Assistant setup](https://www.jetbrains.com/help/ai-assistant/mcp.html)
 
-For the other hosts, the command builds the local package and opens the host’s native installer. Install the host first and keep Node 24 on its PATH. Restart the host, approve the plugin or hooks if prompted, and search for `context_search` in its tools. For Kiro IDE, run `pnpm plugins:pack`, then import `dist/plugins/portable` in Powers → Add Custom Power. The Kiro Power provides archive tools and a skill. Use the CLI pipe below for build capture in Kiro.
+**Kiro IDE.** Run `pnpm plugins:pack`, import `dist/plugins/portable` under **Powers → Add Custom Power**, and use the CLI pipe for capture.
 
-Use `pnpm plugins:pack` to build all packages without installing them. Bundles include the runtime and license notices. Gemini, Qwen, Pi and OMP support linking local packages, so keep the checkout at a stable path. Rebuild to refresh linked packages, reinstall copied packages, and use the host’s plugin manager to uninstall. Remove a previous manual ContactSheet registration when switching to the plugin to avoid duplicate tools.
+**Updates.** Keep Node 24 on the host’s PATH. Gemini, Qwen, Pi and OMP can link the checkout. Keep it at a stable path and rebuild to refresh linked packages. Reinstall copied packages or remove them through the host’s plugin manager. Remove duplicate manual registrations when switching to a plugin.
+
+</details>
 
 ## Run it
 
-From the repository root:
+Try a two-line log from the checkout:
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm test
-pnpm --silent contactsheet init
+pnpm build
+printf 'PASS cache\nERROR checkout timed out\n' | pnpm --silent ctx index --source checkout
+pnpm --silent ctx search 'checkout timed out'
 ```
 
-The test command builds all four TypeScript packages. For a build on its own, run `pnpm build`. The idempotent `init` command creates `.context/archive.sqlite` and prints an MCP launch configuration with absolute paths. Use `--db PATH` on any command or set `CONTEXT_DB` to choose another archive.
+The search returns the archive ID and line number. In a connected agent using the same archive, ask:
 
-```sh
-printf 'PASS cache\nERROR checkout timed out\n' | pnpm --silent contactsheet index --source checkout
-pnpm --silent contactsheet search 'checkout timed out'
-```
+> Read the line containing “checkout timed out” from the checkout log.
 
-Copy the returned `id` into the following command to read the matching line:
-
-```sh
-pnpm --silent contactsheet read <archive-id> --line 2 --count 1
-```
-
-Replace `<archive-id>` with the actual value. For an existing file, use `pnpm --silent contactsheet index build.log`. For large command results, pipe output directly into the CLI so the agent only sees the receipt. For example, in Bash or Zsh:
-
-```sh
-set -o pipefail
-pnpm test 2>&1 | pnpm --silent contactsheet index --source 'pnpm test' --session local
-```
-
-The receipt includes the full content’s SHA-256, source, session label, timestamp, byte count, line count and preview. Identical content and labels return the original receipt.
-
-## Connect an agent
-
-For clients that accept JSON `mcpServers` settings, copy the entry printed by `pnpm --silent contactsheet init` into the client’s configuration. To register the default project archive with Codex CLI, run this from the repository root:
-
-```sh
-codex mcp add contactsheet -- "$(command -v node)" "$PWD/apps/cli/dist/index.js" serve --db "$PWD/.context/archive.sqlite"
-```
-
-Open a session with the server enabled. An example request is “Search the local archive for ‘checkout timed out’, then read the matching line and the next two lines.”
-
-| Tool | Inputs | Result |
-| --- | --- | --- |
-| `context_index` | `text`, optional `source` and `session` | Receipt with the archive ID and preview |
-| `context_search` | `query`, optional `id` and `limit` (1–50) | Ranked hits with ID, source, 1-based line and excerpt |
-| `context_read` | `id`, optional `line`, `count` (1–200) and `offset` | Exact text and a `next` cursor, or `null` at end |
-
-Indexing through MCP takes literal text. To keep a large log out of the conversation from the beginning, use file or stdin ingestion through the CLI. All clients pointed at a database can access its contents. Use a separate archive file for each project you want to isolate. The archive holds plaintext and the project-local default is gitignored.
+Or use `pnpm --silent ctx read <archive-id> --line 2 --count 1`. For an existing file, run `pnpm --silent ctx index build.log`.
 
 ## Automatic build and test capture
 
-Claude Code, Codex CLI, and Gemini CLI can capture selected foreground commands before the result reaches the conversation. Ask the agent to run a build or test normally. Output through 4,096 bytes passes back verbatim. For a larger text log, the agent gets a preview and an ID for `context_search` and `context_read`. Both the hook and the MCP server must point at the same database.
+```mermaid
+flowchart TD
+    A["Run a supported build or test"] --> B{"Output size"}
+    B -->|"Up to 4,096 bytes"| C["Return original output"]
+    B -->|"Larger log"| D["Archive locally in SQLite"]
+    D --> E["Return preview and archive ID"]
+    E --> F["Search for a diagnostic"]
+    F --> G["Read original lines"]
+    D -. "Indexing limit or failure" .-> H["Return private raw file path"]
+```
+
+The hook preserves the command’s exit status. Simple foreground commands such as `pnpm run build`, `npm test`, `pytest` and `cargo build` are eligible on Bash or Zsh on macOS and Linux. For pipelines, compound commands or manual capture, pipe the output into ContactSheet:
+
+```sh
+set -o pipefail
+pnpm test 2>&1 | pnpm --silent ctx index --source 'pnpm test' --session local
+```
+
+<details>
+<summary><strong>Archive contents, limits and privacy</strong></summary>
+
+The default archive is `.context/archive.sqlite`. Set `CONTEXT_DB` or pass `--db PATH` to choose another. The hook and MCP server must use the same archive. Its contents are plaintext and readable by every client connected to it. Use separate files to isolate projects.
+
+CLI indexing returns a SHA-256 hash, source, session, timestamp, byte and line counts, and preview. Identical content and labels return the original receipt. Automatic capture combines stdout and stderr in write order. For output over 8 MiB or 100,000 lines, undecodable large output, or indexing failure, it returns a private raw file path beside the database. Keep the file for exact recovery.
+
+</details>
+
+## Measured improvement
+
+In the 3,600-line failing-build fixture, the first reply identified the failure and preserved exit code 23. When the diagnostic on line 501 was missing from the preview, the agent could still search for its tag and read it.
+
+| Task | Raw output | ContactSheet response | Fewer bytes |
+| --- | ---: | ---: | ---: |
+| Identify the build failure | 178,862 B | 652 B | **99.64%** |
+| Also search for and read the omitted line | 178,862 B | 1,218 B total | **99.32%** |
+| Read a short passing test run | 2,326 B | 2,326 B | 0% |
+
+<details>
+<summary><strong>Measurement conditions and coding-guidance comparison</strong></summary>
+
+The Claude Code, Codex and Gemini hook tests each executed the same failing build once. Byte counts cover the receipt and, in the second row, both serialized MCP responses. They exclude prompts, requests and protocol framing. The searchable SQLite file occupied 987,136 bytes. Reading the whole log back into chat gives up the context saving. The passing-suite size varies with timing and runner formatting.
+
+In a separate paired review on Apple silicon, both runs detected the two seeded queue-worker bugs and proposed fixes. The guided review also addressed a failed deletion after successful delivery.
+
+| Same review task, fresh conversation | Defects found | Prompt tokens | Generated tokens | Total tokens |
+| --- | ---: | ---: | ---: | ---: |
+| Baseline review prompt | 2/2 | 188 | 2,432 | 2,620 |
+| ContactSheet full policy + review workflow | 2/2 | 318 | 1,483 | 1,801 |
+
+The guided run used **31.3% fewer total tokens** in this one pair. Broader effects on token use and defect detection remain unmeasured. To reproduce with LM Studio and the same installed model, run `pnpm build`, then `node scripts/benchmark-review.mjs lmstudio-community/Qwen3.8-27B-MLX-4bit`.
+
+</details>
+
+## Built-in coding guidance
+
+Ask your agent to **review staged changes**, **audit the repository**, **list deferred shortcuts**, or **compare two benchmark runs**. The agent gets its workflow from `context_coding` and uses its own repository access. Skill-capable hosts also receive named skills for these workflows and help.
+
+| Mode | What the agent focuses on |
+| --- | --- |
+| `lite` | Reuse existing code and verify the change concisely. |
+| `full` (default) | Trace callers, stored data and failure paths. |
+| `ultra` | First check whether configuration, deletion or an existing feature solves the task. |
+| `off` | Disable coding guidance. |
+
+Run `pnpm ctx coding` to see the current mode or `pnpm ctx coding lite` to change it. Agents sharing an archive share its setting. Set `CONTACTSHEET_CODING_LEVEL` to change the initial default. To print a workflow, run a command such as `pnpm ctx coding audit`.
+
+<details>
+<summary><strong>Compare runs or display a Claude Code session board</strong></summary>
+
+**Measure a change.** Run the same acceptance checks against a baseline and a guided implementation. Save one JSON object per run, for example `{"task":"parser fix","passed":true,"lines":34,"seconds":120,"tokens":4100,"costUSD":0.04}`. Run `pnpm ctx compare baseline.json guided.json` for absolute and percentage differences. Only shared metrics are compared. A negative saving means the guided run used more.
+
+**Claude Code session board.** Run `pnpm --silent ctx board config` from the checkout, optionally passing `--db /path/to/project/.context/archive.sqlite`. Merge the resulting statusLine entry into the Claude Code settings for that project. The display shows the coding level and usage supplied by Claude Code. Use `board off` or `board on` against the same archive to hide or restore it. To summarize historical JSONL transcripts, run `pnpm ctx board import --from /path/to/transcripts`. The archive stores per-session totals and identifiers. Reimporting refreshes those totals. `pnpm ctx board` displays the totals, with cost and API duration summed only from transcripts that report those values.
+
+</details>
+
+## Connect an agent
+
+For manual MCP setup, run `pnpm --silent ctx init` and copy the printed `mcpServers` entry into the client. The command creates the project archive and prints absolute paths. Index large files through the CLI before their contents enter the conversation.
+
+| Tool | Inputs | Result |
+| --- | --- | --- |
+| `context_index` | Text, optional source and session | Archive ID and preview |
+| `context_search` | Query, optional ID and limit (1–50) | Ranked hits with source, line and excerpt |
+| `context_read` | ID, optional line, count (1–200) and offset | Exact text and a cursor for the next page |
+| `context_coding` | Optional level or action | Current policy or requested workflow |
+
+<details>
+<summary><strong>Manual hook setup for Claude Code, Codex and Gemini</strong></summary>
 
 From the project you want to use with the agent, set `cli` to the absolute path of the built ContactSheet CLI. If you are working in the ContactSheet checkout itself, run:
 
@@ -117,7 +163,13 @@ claude --settings "$(node "$cli" hook-config claude)" --mcp-config "$(node "$cli
 
 For persistent project setup, merge the generated hook group into `.claude/settings.local.json` and the MCP entry into `.mcp.json`. Choose one registration method per project.
 
-**Codex CLI.** For a project with no existing hooks file, create it with the following commands. The subshell protects an existing file from being overwritten.
+**Codex CLI.** To register the MCP server from the ContactSheet checkout, run:
+
+```sh
+codex mcp add contactsheet -- "$(command -v node)" "$PWD/apps/cli/dist/index.js" serve --db "$PWD/.context/archive.sqlite"
+```
+
+For a project with no existing hooks file, create it with the following commands. The subshell protects an existing file from being overwritten.
 
 ```sh
 mkdir -p .codex
@@ -135,24 +187,12 @@ mkdir -p .gemini
 
 If settings already exist, print the configuration with `node "$cli" hook-config gemini`, append the generated group to `hooks.BeforeTool`, and merge `mcpServers.contactsheet`. Start Gemini CLI in the trusted workspace and check the hook with `/hooks panel` and the archive tools with `/mcp`. Ask Gemini to run a test and search the captured log for a diagnostic. Gemini applies its command permissions to the resulting capture pipeline. In headless sessions the applicable policy must permit that pipeline, including output redirection. Background shell calls follow Gemini’s ordinary execution path.
 
-**Coverage.** The adapters target Bash and Zsh on macOS and Linux. Supported examples include `npm test`, `pnpm run build`, `yarn lint`, `bun test`, `node --test`, `pytest`, `go test ./...`, `cargo build`, and `make check`. The matcher accepts simple words and options. Compound commands, quoted shell expressions, pipelines, and explicit watch/background modes use the host's normal execution path. To capture a compound command explicitly, use the CLI pipe in **Run it**.
+[Claude Code hooks](https://code.claude.com/docs/en/hooks#pretooluse-decision-control) · [Codex hooks](https://learn.chatgpt.com/docs/hooks) · [Gemini CLI hooks](https://geminicli.com/docs/hooks/reference/)
 
-**Storage and output.** The shell combines stdout and stderr in write order. ContactSheet returns the result when the command finishes. Outputs over 8 MiB, logs over 100,000 lines, undecodable large outputs, and indexing failures return a path to a private raw file beside the database. Keep that file for exact recovery or remove it when finished. The capture hook preserves the build's exit status when returning either a receipt or a raw-file path.
-
-[Claude Code hook reference](https://code.claude.com/docs/en/hooks#pretooluse-decision-control) · [Codex hook reference](https://learn.chatgpt.com/docs/hooks) · [Gemini CLI hook reference](https://geminicli.com/docs/hooks/reference/)
+</details>
 
 ## Verification
 
-`pnpm test` exercises the core, SQLite and the CLI. The integration test starts the compiled stdio server with the official MCP client, indexes a generated 3,001-line log, checks all five failures in the preview, searches for one failure, and reconstructs the entire input through paged reads. It also checks that CLI and MCP return the same receipt. Capture tests invoke all three generated hook commands, execute their rewritten shell commands against a failing build, verify exactly one execution and exit status 23, then retrieve an omitted diagnostic and reconstruct the output through MCP.
+Run `pnpm test` to build the packages and exercise capture, search, exact reads, coding guidance and plugin integration. A separate 3,001-line fixture checks that all five seeded failures appear in the preview and that paged reads reconstruct every line.
 
 [Architecture and limits](ARCHITECTURE.md) · [MIT license](LICENSE)
-
-## Built-in coding guidance
-
-ContactSheet supplies a coding policy at MCP startup. Ask your agent to “set ContactSheet to lite”, “review the staged changes”, “audit this repository”, “list deferred shortcuts”, or “compare the two benchmark runs”. Agents use `context_coding` to retrieve the current rules or workflow and perform the work with their own repository access. Skill-capable hosts also receive named ContactSheet skills for review, audit, debt, gain and help. Hosts that omit MCP startup instructions can call the tool explicitly.
-
-From the CLI, `pnpm ctx coding` shows the active policy. Use `pnpm ctx coding lite|full|ultra|off` with one level to change it. Lite favors reuse and concise verification. Full traces affected callers and failure cases. Ultra also checks whether an existing feature or deletion solves the task. Off disables the coding guidance. The setting persists per archive and is shared by agents using that archive. Set `CONTACTSHEET_CODING_LEVEL` for a different initial default. CLI workflow commands such as `pnpm ctx coding audit` print instructions for the agent.
-
-**Measure a change.** Run the same acceptance checks against a baseline and a guided implementation. Save one JSON object per run, for example `{"task":"parser fix","passed":true,"lines":34,"seconds":120,"tokens":4100,"costUSD":0.04}`. Run `pnpm ctx compare baseline.json guided.json` for absolute and percentage differences. Only shared metrics are compared. A negative saving means the guided run used more.
-
-**Claude Code session board.** Run `pnpm --silent ctx board config` from the checkout, optionally passing `--db /path/to/project/.context/archive.sqlite`. Merge the resulting statusLine entry into the Claude Code settings for that project. The display shows the coding level and usage supplied by Claude Code. Use `board off` or `board on` against the same archive to hide or restore it. To summarize historical JSONL transcripts, run `pnpm ctx board import --from /path/to/transcripts`. The archive stores per-session totals and identifiers. Reimporting refreshes those totals. `pnpm ctx board` displays the totals, with cost and API duration summed only from transcripts that report those values.

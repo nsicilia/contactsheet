@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 224" role="img" aria-labelledby="title desc">
+  <title id="title">ContactSheet build capture</title>
+  <desc id="desc">A contact strip shows a build log, a compact failure preview, and the original diagnostic retrieved from the local archive.</desc>
+  <defs>
+    <pattern id="perfs" width="34" height="12" patternUnits="userSpaceOnUse"><rect x="7" y="2" width="18" height="8" rx="2" fill="#a7afa9"/></pattern>
+  </defs>
+  <rect width="960" height="224" rx="14" fill="#17221f"/>
+  <path d="M14 12h932v12H14z M14 200h932v12H14z" fill="url(#perfs)"/>
+  <g fill="#f5f0df">
+    <rect x="22" y="38" width="291" height="146" rx="4"/>
+    <rect x="334" y="38" width="291" height="146" rx="4"/>
+    <rect x="646" y="38" width="292" height="146" rx="4"/>
+  </g>
+  <g font-family="ui-monospace,monospace" fill="#374f47" font-size="15">
+    <text x="42" y="66">01 / BUILD LOG</text><text x="354" y="66">02 / AGENT REPLY</text><text x="666" y="66">03 / EXACT READ</text>
+  </g>
+  <g fill="#17221f" font-size="30" font-weight="bold" font-family="system-ui,sans-serif">
+    <text x="42" y="108">178,862 bytes</text><text x="354" y="108">652 bytes</text><text x="666" y="108">Line 501</text>
+  </g>
+  <g stroke="#81958b" stroke-width="4" stroke-linecap="round">
+    <path d="M44 131h181m-181 11h223m-223 11h124m-124 11h200"/>
+    <path d="M356 157h146m-146 10h96"/>
+  </g>
+  <rect x="353" y="122" width="246" height="24" rx="3" fill="#f6c69e"/>
+  <rect x="665" y="122" width="250" height="46" rx="3" fill="#cde3d5"/>
+  <g fill="#243b32" font-family="ui-monospace,monospace" font-size="14">
+    <text x="360" y="139">ERROR missing warehouse…</text>
+    <text x="674" y="140">warehouse diagnostic</text><text x="674" y="158">tag amber-914</text>
+  </g>
+</svg>
