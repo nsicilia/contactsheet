@@ -131,6 +131,15 @@ In the 3,600-line failing-build fixture, the first reply identified the failure 
 | Also search for and read the omitted line | 178,862 B | 1,218 B total | **99.32%** |
 | Read a short passing test run | 2,326 B | 2,326 B | 0% |
 
+**When the answer requires a lookup.** In a separate live subscription test, each client identified a build failure and an earlier shipment reference in a 5,943-byte log. The raw run received the whole log. The capture run received a preview and had to search and read the archive. Both paths returned exact answers in all three matched pairs per client.
+
+| Client | Median additional input tokens with retrieval (%) | Median additional elapsed time |
+| --- | ---: | ---: |
+| Codex | +146.35% | +8.07 s |
+| Claude Code | +72.73% | +6.40 s |
+
+For this small log, the extra model turns outweighed the shorter initial reply. Percentages are paired changes in whole-task input tokens, including cached input. Larger logs and tasks answered from the preview can have different results. Reproduce with `python3 scripts/benchmark-retrieval.py` after `pnpm build`.
+
 <details>
 <summary><strong>Measurement conditions and coding-guidance comparison</strong></summary>
 
