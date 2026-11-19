@@ -2,6 +2,29 @@
 
 Archive a command’s complete output on your machine and give a coding agent a short preview. The agent can search for a failure and read the original lines from the same SQLite file. ContactSheet runs from a checkout with Node.js 24.12+ (24.x, with FTS5) and pnpm 10.13.1.
 
+## Measured improvement
+
+On a generated 3,600-line failing build, ContactSheet reduced the first reply by **99.64%** and preserved exit code 23. A diagnostic on line 501 was absent from the preview. Searching for its tag and reading the exact line still used **99.32% fewer response bytes** than returning the original build output.
+
+| Task | Raw output | ContactSheet response bytes | Reduction |
+| --- | ---: | ---: | ---: |
+| Identify the build failure from the first reply | 178,862 B | 652 B | 99.64% |
+| Also retrieve the omitted diagnostic | 178,862 B | 1,218 B total | 99.32% |
+| Read this project’s passing test output | 2,326 B | 2,326 B | 0% |
+
+The first two rows use the same build. Each Claude Code, Codex and Gemini hook test executed it once and produced the same result. The second row counts the full receipt and both serialized MCP tool results. In a separate 3,001-line fixture, the preview included all five seeded failures, and paged reads reconstructed the entire log exactly. Short output passes through verbatim up to 4,096 bytes.
+
+These measurements count UTF-8 response bytes. Model prompts, tool requests, protocol framing and billed tokens are outside that count. The fresh SQLite archive for the 178,862-byte fixture occupied 987,136 bytes on disk, including its search index. Reading the whole archive back into chat gives up the context saving. Run `pnpm test` to reproduce the fixture results. The passing-suite byte count varies with test timings and runner formatting.
+
+**Did coding guidance improve the review?** In one paired local-model trial, both reviews correctly found both seeded defects in a queue worker: deleting an item before successful delivery loses retries, and an async callback passed to `forEach` lets the worker return before its work finishes. Both proposed fixes. The guided review also explicitly covered a failed deletion *after* successful delivery.
+
+| Same review task, fresh conversation | Defects found | Prompt tokens | Generated tokens | Total tokens |
+| --- | ---: | ---: | ---: | ---: |
+| Baseline review prompt | 2/2 | 188 | 2,432 | 2,620 |
+| ContactSheet full policy + review workflow | 2/2 | 318 | 1,483 | 1,801 |
+
+The guided run added 130 prompt tokens and used **31.3% fewer total tokens** in this pair. One sample per condition establishes neither a typical saving nor a higher defect detection rate. The model ran locally on Apple silicon, and token counts came from LM Studio. To repeat with the same installed model, run `pnpm build` and `node scripts/benchmark-review.mjs lmstudio-community/Qwen3.8-27B-MLX-4bit`. The script uses the same code, model and user prompt for both runs and adds the compiled ContactSheet instructions to the second system prompt.
+
 ## Install an agent plugin
 
 From this checkout, run `pnpm install --frozen-lockfile` once, then choose your host:

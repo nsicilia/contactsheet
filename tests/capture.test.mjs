@@ -58,9 +58,11 @@ for (const agent of ['claude', 'codex', 'gemini']) {
     const client = new Client({ name: 'capture-test', version: '1' });
     await client.connect(new StdioClientTransport(configMcp));
     t.after(() => client.close());
+    let responseBytes = Buffer.byteLength(shell.stdout);
     const call = async (name, args) => {
       const result = await client.callTool({ name, arguments: { ...args, id: receipt.id } });
       assert.ok(!result.isError, result.content[0].text);
+      responseBytes += Buffer.byteLength(JSON.stringify(result));
       const value = JSON.parse(result.content[0].text);
       if (name === 'context_search') assert.deepEqual(result.structuredContent, { hits: value });
       return value;
@@ -68,6 +70,7 @@ for (const agent of ['claude', 'codex', 'gemini']) {
     const hits = await call('context_search', { query: 'amber 914' });
     assert.equal(hits[0].line, 501);
     assert.equal((await call('context_read', { line: hits[0].line, count: 1 })).text, lines[500]);
+    t.diagnostic(`Receipt + MCP search + one-line read: ${responseBytes} bytes`);
     let all = '';
     let next = { line: 1, offset: 0 };
     while (next) {
