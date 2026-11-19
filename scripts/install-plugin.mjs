@@ -50,7 +50,20 @@ if (host === 'intellij') {
 } else {
   await packagePlugins();
   for (const [program, ...args] of commands[host]) {
-    const result = spawnSync(program, args, { stdio: 'inherit' });
+    let result = spawnSync(program, args, { stdio: 'inherit' });
+    if (program === 'codex' && result.error?.code === 'ENOENT' && process.platform === 'darwin') {
+      for (const bundled of [
+        '/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex',
+        '/Applications/Codex.app/Contents/Resources/codex',
+      ]) {
+        result = spawnSync(bundled, args, { stdio: 'inherit' });
+        if (result.error?.code !== 'ENOENT') break;
+      }
+    }
+    if (result.error?.code === 'ENOENT') {
+      console.error(`Could not locate ${program}. Add its CLI executable to PATH and rerun pnpm plugin ${host}.`);
+      process.exit(1);
+    }
     if (result.error) throw result.error;
     if (result.status !== 0) process.exit(result.status ?? 1);
   }
