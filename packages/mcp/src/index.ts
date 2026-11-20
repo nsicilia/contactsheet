@@ -5,6 +5,7 @@ import { maxBytes, type ContextEngine } from '@ctx/core';
 
 const id = z.string().regex(/^ctx_[a-f0-9]{64}$/);
 const label = z.string().max(256);
+const decisionKey = z.string().max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 function result(value: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(value) }] };
 }
@@ -34,6 +35,23 @@ export function createServer(engine: ContextEngine) {
       offset: z.number().int().nonnegative().optional(),
     },
   }, ({ id, line, count, offset }) => result(engine.read(id, line, count, offset)));
+  server.registerTool('context_decision_save', {
+    description: 'Record an agreed project decision and its rationale with an evidence archive ID and line. Use expectedRevision 0 to create, or the current revision to append a revision. Earlier revisions are preserved.',
+    inputSchema: {
+      key: decisionKey.describe('Stable, lowercase decision key such as build-timeout'),
+      text: z.string().trim().min(1).max(4096).refine(text => text.isWellFormed() && !text.includes('\0')),
+      archiveId: id, line: z.number().int().positive().max(100000),
+      expectedRevision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER - 1),
+    },
+  }, ({ expectedRevision, ...draft }) => result(engine.saveDecision(draft, expectedRevision)));
+  server.registerTool('context_decision_read', {
+    description: 'Read the current project decision by key, or a specific earlier revision, including the source archive ID and line for context_read.',
+    inputSchema: { key: decisionKey, revision: z.number().int().positive().optional() },
+  }, ({ key, revision }) => result(engine.readDecision(key, revision)));
+  server.registerTool('context_decision_list', {
+    description: 'List up to 20 project decision keys and their current revisions. Pass the returned next key as after to continue.',
+    inputSchema: { after: decisionKey.optional() },
+  }, ({ after }) => result(engine.listDecisions(after)));
   return server;
 }
 

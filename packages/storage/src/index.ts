@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { pageBudget, prefix, type Archive, type Cursor, type Entry, type Hit, type Page } from '@ctx/core';
+import { pageBudget, prefix, type Archive, type Cursor, type Decision, type DecisionDraft, type Entry, type Hit, type Page } from '@ctx/core';
 
 const schema = `
   CREATE TABLE documents(hash TEXT PRIMARY KEY);
@@ -34,6 +34,13 @@ export class SqliteArchive implements Archive {
       }
       this.db.exec('CREATE TABLE IF NOT EXISTS preferences(key TEXT PRIMARY KEY, value TEXT NOT NULL)');
       this.db.exec('CREATE TABLE IF NOT EXISTS session_usage(id TEXT PRIMARY KEY, tokens INTEGER, cost REAL, duration REAL)');
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS decisions(
+          key TEXT NOT NULL, revision INTEGER NOT NULL, text TEXT NOT NULL,
+          archiveId TEXT NOT NULL REFERENCES entries(id), line INTEGER NOT NULL,
+          createdAt TEXT NOT NULL, PRIMARY KEY(key, revision)
+        )
+      `);
       this.db.exec('COMMIT');
     } catch (error) {
       this.db.close(); // Rolls back any open transaction.
@@ -64,6 +71,36 @@ export class SqliteArchive implements Archive {
   }
 
   close() { this.db.close(); }
+
+  saveDecision({ key, text, archiveId, line }: DecisionDraft, expectedRevision: number): Decision {
+    const entry = this.db.prepare('SELECT lines FROM entries WHERE id=?').get(archiveId);
+    if (!entry) throw new Error('Unknown evidence archive ID');
+    if (line < 1 || line > Number(entry.lines)) throw new Error('Evidence line outside archive');
+
+    const saved = this.db.prepare(`
+      INSERT INTO decisions(key, revision, text, archiveId, line, createdAt)
+      SELECT ?, ?, ?, ?, ?, ?
+      WHERE ? = COALESCE((SELECT max(revision) FROM decisions WHERE key=?), 0)
+      RETURNING *
+    `).get(key, expectedRevision + 1, text, archiveId, line, new Date().toISOString(), expectedRevision, key);
+    if (!saved) throw new Error('Decision revision conflict. Read the current revision before retrying.');
+    return saved as unknown as Decision;
+  }
+
+  readDecision(key: string, revision?: number): Decision {
+    const row = revision === undefined
+      ? this.db.prepare('SELECT * FROM decisions WHERE key=? ORDER BY revision DESC LIMIT 1').get(key)
+      : this.db.prepare('SELECT * FROM decisions WHERE key=? AND revision=?').get(key, revision);
+    if (!row) throw new Error('Decision or revision not found');
+    return row as unknown as Decision;
+  }
+
+  listDecisions(after: string, limit: number): Pick<Decision, 'key' | 'revision'>[] {
+    return this.db.prepare(`
+      SELECT key, max(revision) AS revision FROM decisions
+      WHERE key > ? GROUP BY key ORDER BY key LIMIT ?
+    `).all(after, limit) as unknown as Pick<Decision, 'key' | 'revision'>[];
+  }
 
   save(entry: Entry, lines: string[]): Entry {
     this.db.exec('BEGIN IMMEDIATE');

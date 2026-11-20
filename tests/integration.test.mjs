@@ -40,7 +40,8 @@ test('stdio MCP and CLI share the archive and recover every line of a large log'
   await client.connect(new StdioClientTransport(server));
   t.after(() => client.close());
   assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(),
-    ['context_coding', 'context_index', 'context_read', 'context_search']);
+    ['context_coding', 'context_decision_list', 'context_decision_read', 'context_decision_save',
+      'context_index', 'context_read', 'context_search']);
   async function call(name, args) {
     const reply = await client.callTool({ name, arguments: args });
     assert.ok(!reply.isError, reply.content[0]?.text);
@@ -69,6 +70,59 @@ test('stdio MCP and CLI share the archive and recover every line of a large log'
   assert.equal(recovered, log);
   assert.equal((await client.callTool({ name: 'context_read', arguments: { id: receipt.id, line: 0 } })).isError, true);
   t.diagnostic(`${receipt.bytes} original UTF-8 bytes, ${Buffer.byteLength(receipt.preview)} preview bytes; 5/5 failures surfaced, exact recovery`);
+});
+
+test('independent MCP clients share revisioned decisions and exact evidence', async t => {
+  const { run } = workspace(t);
+  const firstEvidence = run(['index'], 'Build exceeded the initial deadline.\n');
+  const laterEvidence = run(['index'], 'The slow shard now completes within 90 seconds.\n');
+  const server = run(['init']).mcpServers.contactsheet;
+  async function connect(name) {
+    const client = new Client({ name, version: '1' });
+    t.after(() => client.close());
+    await client.connect(new StdioClientTransport(server));
+    return client;
+  }
+  async function call(client, name, args) {
+    const reply = await client.callTool({ name, arguments: args });
+    assert.ok(!reply.isError, reply.content[0]?.text);
+    return JSON.parse(reply.content[0].text);
+  }
+
+  const author = await connect('decision-author');
+  const key = 'build-timeout';
+  const draft = { key, text: 'Allow 120 seconds until we measure the slow shard.', archiveId: firstEvidence.id, line: 1 };
+  const first = await call(author, 'context_decision_save', { ...draft, expectedRevision: 0 });
+  assert.equal(first.revision, 1);
+  await author.close();
+
+  const reviewer = await connect('decision-reviewer');
+  assert.deepEqual(await call(reviewer, 'context_decision_list', {}),
+    { decisions: [{ key, revision: 1 }], next: null });
+  assert.deepEqual(await call(reviewer, 'context_decision_read', { key }), first);
+  const write = (client, args) => client.callTool({ name: 'context_decision_save', arguments: args });
+  const update = { ...draft, text: 'Set the timeout to 90 seconds based on the shard measurement.',
+    archiveId: laterEvidence.id, expectedRevision: first.revision };
+  for (const invalid of [{ ...update, line: 2 }, { ...update, archiveId: 'ctx_' + '0'.repeat(64) }]) {
+    const reply = await write(reviewer, invalid);
+    assert.equal(reply.isError, true);
+    assert.match(reply.content[0].text, /evidence/i);
+  }
+
+  const observer = await connect('decision-observer');
+  const outcomes = await Promise.all([write(reviewer, update), write(observer, update)]);
+  assert.equal(outcomes.filter(reply => !reply.isError).length, 1);
+  assert.match(outcomes.find(reply => reply.isError).content[0].text, /revision conflict/i);
+  const current = await call(observer, 'context_decision_read', { key });
+  assert.equal(current.revision, 2);
+  assert.equal(current.text, update.text);
+  const original = await call(observer, 'context_decision_read', { key, revision: 1 });
+  assert.deepEqual(original, first);
+  for (const [decision, text] of [[original, 'Build exceeded the initial deadline.\n'],
+    [current, 'The slow shard now completes within 90 seconds.\n']]) {
+    const page = await call(observer, 'context_read', { id: decision.archiveId, line: decision.line, count: 1 });
+    assert.equal(page.text, text);
+  }
 });
 
 test('coding settings persist across CLI and MCP and invalid changes are atomic', async t => {

@@ -60,6 +60,15 @@ The search returns the archive ID and line number. In a connected agent using th
 
 Or use `pnpm --silent ctx read <archive-id> --line 2 --count 1`. For an existing file, run `pnpm --silent ctx index build.log`.
 
+## Share project decisions between agents
+
+Point both agents' ContactSheet MCP servers at the same absolute path to a project archive. Run `pnpm --silent ctx init --db /path/to/project/.context/archive.sqlite` to generate the server command and arguments for each client. Use a separate archive per project when decisions and evidence should stay isolated.
+
+1. Archive the supporting output and find its evidence line with `context_search`.
+2. In the first agent, call `context_decision_save` with a stable key such as `build-timeout`, the decision and rationale in `text`, the evidence's `archiveId` and `line`, and `expectedRevision: 0`.
+3. In the second agent, use `context_decision_list` to discover keys, then `context_decision_read` to get the current revision. To revise it, save the same key with the current revision as `expectedRevision` and the evidence for the new decision. If another agent saved a revision first, read it before retrying.
+4. Read an older decision by passing its `revision` to `context_decision_read`. Use `context_read` with that revision's evidence archive ID and line to see the exact source.
+
 <a id="self-hosted-gemini-gateway"></a>
 
 ## Self-hosted model gateway

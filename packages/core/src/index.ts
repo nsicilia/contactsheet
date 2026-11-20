@@ -19,11 +19,26 @@ export interface Cursor { line: number; offset: number }
 export interface Page { text: string; next: Cursor | null }
 export interface Hit { id: string; source: string; line: number; excerpt: string }
 
+export interface DecisionDraft {
+  key: string;
+  text: string;
+  archiveId: string;
+  line: number;
+}
+
+export interface Decision extends DecisionDraft {
+  revision: number;
+  createdAt: string;
+}
+
 export interface Archive {
   codingLevel(level?: string): string;
   save(entry: Entry, lines: string[]): Entry;
   search(expression: string, limit: number, id?: string): Hit[];
   read(id: string, cursor: Cursor, count: number): Page;
+  saveDecision(draft: DecisionDraft, expectedRevision: number): Decision;
+  readDecision(key: string, revision?: number): Decision;
+  listDecisions(after: string, limit: number): Pick<Decision, 'key' | 'revision'>[];
 }
 
 export function integer(value: number, name: string, min: number, max: number) {
@@ -120,5 +135,20 @@ export class ContextEngine {
     integer(count, 'count', 1, 200);
     integer(offset, 'offset', 0, maxBytes);
     return this.archive.read(id, { line, offset }, count);
+  }
+
+  saveDecision(draft: DecisionDraft, expectedRevision: number) {
+    return this.archive.saveDecision(draft, expectedRevision);
+  }
+
+  readDecision(key: string, revision?: number) {
+    return this.archive.readDecision(key, revision);
+  }
+
+  listDecisions(after = '') {
+    const decisions = this.archive.listDecisions(after, 21);
+    const hasMore = decisions.length > 20;
+    if (hasMore) decisions.pop();
+    return { decisions, next: hasMore ? decisions.at(-1)!.key : null };
   }
 }
