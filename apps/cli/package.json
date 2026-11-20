@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@ctx/core": "workspace:*",
+    "@ctx/mcp": "workspace:*",
     "@ctx/storage": "workspace:*",
-    "@ctx/mcp": "workspace:*"
+    "smol-toml": "1.9.1"
   }
 }

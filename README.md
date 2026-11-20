@@ -62,7 +62,16 @@ Or use `pnpm --silent ctx read <archive-id> --line 2 --count 1`. For an existing
 
 ## Share project decisions between agents
 
-Point both agents' ContactSheet MCP servers at the same absolute path to a project archive. Run `pnpm --silent ctx init --db /path/to/project/.context/archive.sqlite` to generate the server command and arguments for each client. Use a separate archive per project when decisions and evidence should stay isolated.
+From the ContactSheet checkout, configure Codex and Claude Code for your project:
+
+```sh
+pnpm build
+pnpm --silent ctx setup /path/to/project
+```
+
+Setup registers ContactSheet in the project's `.codex/config.toml` and `.mcp.json` and reports both files and their shared archive, `.context/archive.sqlite` by default. Omit the directory to configure the current project. Use `--db` to select another archive. Relative database paths are resolved from the project directory. Setup preserves other server registrations and reports any conflicting ContactSheet entry for review. If Codex defines the entire `mcp_servers` map as an inline table, expand it to standard TOML tables before adding a new server.
+
+Open both agents in the project and follow each client's normal trust and MCP approval prompts. If a separately installed ContactSheet plugin also appears, use the project registration for shared decisions. The generated paths are specific to this machine, so keep those entries local. For another client, `pnpm --silent ctx init --db /path/to/project/.context/archive.sqlite` prints the corresponding MCP configuration.
 
 1. Archive the supporting output and find its evidence line with `context_search`.
 2. In the first agent, call `context_decision_save` with a stable key such as `build-timeout`, the decision and rationale in `text`, the evidence's `archiveId` and `line`, and `expectedRevision: 0`.

@@ -9,6 +9,7 @@ import { capture } from './capture.js';
 import { agentName, hookConfig, mcpConfig, route } from './hooks.js';
 
 const usage = `contactsheet init
+contactsheet setup [project-directory]    (configure Codex and Claude Code for one archive)
 contactsheet index [file] [--source label] [--session label]    (defaults to stdin)
 contactsheet search <query> [--id archive-id] [--limit n]
 contactsheet read <archive-id> [--line n] [--count n] [--offset n]
@@ -49,7 +50,7 @@ async function main() {
     return;
   }
   const flags: Record<string, string[]> = {
-    gateway: ['provider', 'budget', 'port', 'upstream'], board: ['from'], statusline: [], coding: [], compare: [], init: [], serve: [], 'hook-config': [], hook: [],
+    gateway: ['provider', 'budget', 'port', 'upstream'], board: ['from'], statusline: [], coding: [], compare: [], init: [], setup: [], serve: [], 'hook-config': [], hook: [],
     capture: ['source', 'session'], index: ['source', 'session'],
     search: ['id', 'limit'], read: ['line', 'count', 'offset'],
   };
@@ -57,10 +58,16 @@ async function main() {
   const options = Object.fromEntries(['db', ...flags[command]!].map(key => [key, { type: 'string' as const }]));
   const { values, positionals } = parseArgs({ args, options, allowPositionals: true });
   const arity = command === 'compare' ? 2 : ['search', 'read', 'hook-config', 'hook'].includes(command) ? 1 : 0;
-  if (positionals.length < arity || positionals.length > (['index', 'coding', 'board'].includes(command) ? 1 : arity)) throw new Error(usage);
+  if (positionals.length < arity || positionals.length > (['index', 'coding', 'board', 'setup'].includes(command) ? 1 : arity)) throw new Error(usage);
 
-  const path = resolve(values.db ?? process.env.CONTEXT_DB ?? '.context/archive.sqlite');
+  const database = values.db ?? process.env.CONTEXT_DB ?? '.context/archive.sqlite';
   const cli = fileURLToPath(import.meta.url);
+  if (command === 'setup') {
+    const { setup } = await import('./setup.js');
+    console.log(JSON.stringify(setup(positionals[0] ?? '.', cli, database), null, 2));
+    return;
+  }
+  const path = resolve(database);
   if (command === 'hook-config' || command === 'hook') {
     const agent = agentName(positionals[0]);
     const result = command === 'hook-config' ? hookConfig(agent, cli, path)
