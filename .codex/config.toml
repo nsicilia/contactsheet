@@ -1,0 +1,11 @@
+[mcp_servers.contactsheet]
+command = "/Users/nick/.nvm/versions/node/v24.22.2/bin/node"
+args = [
+    "/Users/nick/Developer/contactsheet/apps/cli/dist/index.js",
+    "serve",
+    "--db",
+    "/Users/nick/Developer/contactsheet/.context/archive.sqlite",
+]
+
+[mcp_servers.contactsheet.tools.context_coding]
+approval_mode = "approve"

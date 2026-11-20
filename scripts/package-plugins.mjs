@@ -50,6 +50,10 @@ function stdio(base) {
   return { mcpServers: { contactsheet: { type: 'stdio', command: 'node', args: [base + '/contactsheet.mjs', 'serve'] } } };
 }
 
+function copilotHooks(bash) {
+  return { version: 1, hooks: { preToolUse: [{ type: 'command', bash }] } };
+}
+
 function pre(event, tool, base, agent) {
   const command = 'node "' + base + '/contactsheet.mjs" hook ' + agent;
   return { hooks: { [event]: [{ matcher: '^' + tool + '$', hooks: [{ type: 'command', command }] }] } };
@@ -69,6 +73,12 @@ async function vsix(dir) {
     const file = join(entry.parentPath, entry.name);
     files['extension/plugin/' + relative(dir, file).split('\\').join('/')] = await readFile(file);
   }
+  const mcp = stdio('${PLUGIN_ROOT}');
+  mcp.mcpServers.contactsheet.args.push('--db', '${PLUGIN_DATA}/archive.sqlite');
+  files['extension/plugin/mcp.json'] = strToU8(json({ $schema: schema + 'mcp.schema.json', ...mcp }));
+  files['extension/plugin/com.github.copilot/hooks/hooks.json'] = strToU8(json(copilotHooks(
+    'node "$PLUGIN_ROOT/contactsheet.mjs" hook copilot --db "${COPILOT_PLUGIN_DATA:?ContactSheet requires plugin data}/archive.sqlite"',
+  )));
   await put(join(out, 'contactsheet.vsix'), zipSync(files, { level: 6 }));
 }
 
@@ -124,9 +134,8 @@ export async function packagePlugins() {
   const portable = await plugin('portable');
   await jsonFile(portable, 'plugin.json', { $schema: schema + 'plugin.schema.json', ...meta, keywords: ['build', 'test', 'logs', 'archive'] });
   await jsonFile(portable, 'mcp.json', { $schema: schema + 'mcp.schema.json', ...stdio('${PLUGIN_ROOT}') });
-  await jsonFile(portable, 'com.github.copilot/hooks/hooks.json', { version: 1, hooks: { preToolUse: [
-    { type: 'command', bash: 'node "$PLUGIN_ROOT/contactsheet.mjs" hook copilot' },
-  ] } });
+  await jsonFile(portable, 'com.github.copilot/hooks/hooks.json',
+    copilotHooks('node "$PLUGIN_ROOT/contactsheet.mjs" hook copilot'));
   await vsix(portable);
 
   const open = await plugin('opencode');

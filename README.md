@@ -38,6 +38,8 @@ Restart the host, approve the plugin or hooks if prompted, and look for `context
 
 **Kiro IDE.** Run `pnpm plugins:pack`, import `dist/plugins/portable` under **Powers → Add Custom Power**, and use the CLI pipe for capture.
 
+**VS Code with Copilot.** Start a Copilot session. The capture hook and search server share `archive.sqlite` in Copilot's persistent ContactSheet plugin-data directory. The archive is shared across workspaces for that installation. To check capture, run a supported build or test through Copilot that produces more than 8 KiB of output. Use the returned archive ID with `context_search` and `context_read` to recover an original line.
+
 **Updates.** Keep Node 24 on the host’s PATH. Gemini, Qwen, Pi and OMP can link the checkout. Keep it at a stable path and rebuild to refresh linked packages. Reinstall copied packages or remove them through the host’s plugin manager. Remove duplicate manual registrations when switching to a plugin.
 
 </details>
