@@ -6,13 +6,21 @@ import { maxBytes, type ContextEngine } from '@ctx/core';
 const id = z.string().regex(/^ctx_[a-f0-9]{64}$/);
 const label = z.string().max(256);
 const decisionKey = z.string().max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const searchInput = { query: z.string().min(1).max(256), limit: z.number().int().min(1).max(50).optional() };
 function result(value: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(value) }] };
 }
 
 export function createServer(engine: ContextEngine) {
   const policy = engine.coding();
-  const server = new McpServer({ name: 'contactsheet', version: '0.1.0' }, { instructions: 'ContactSheet coding mode: ' + policy.level + '. ' + policy.instructions + ' Consult context_coding for the current policy before coding or when the user changes mode.' });
+  const instructions = [
+    'ContactSheet coding mode: ' + policy.level + '.',
+    policy.instructions,
+    'Consult context_coding for the current policy before coding or when the user changes mode.',
+    'When a user asks about a past project decision, including why the project chose or changed something, first call context_decision_search with a few distinctive keywords.',
+    'Use the current revision by default. Use context_read with the evidence archive ID and line to verify the source. Quote the supporting archive line verbatim and cite its archive ID and line number. If the search has no relevant result, say that no matching decision was found.',
+  ].filter(Boolean).join(' ');
+  const server = new McpServer({ name: 'contactsheet', version: '0.1.0' }, { instructions });
   server.registerTool('context_coding', {
     description: 'Get the current coding policy. Set level only on explicit request. Request review, audit, debt, gain or help instructions with action.',
     inputSchema: { level: z.enum(['lite', 'full', 'ultra', 'off']).optional(), action: z.enum(['review', 'audit', 'debt', 'gain', 'help']).optional() },
@@ -23,7 +31,7 @@ export function createServer(engine: ContextEngine) {
   }, ({ text, source, session }) => result(engine.index(text, source ?? 'mcp', session)));
   server.registerTool('context_search', {
     description: 'Find ranked original line numbers matching all query words. Optionally restrict to one archive ID.',
-    inputSchema: { query: z.string().min(1).max(256), limit: z.number().int().min(1).max(50).optional(), id: id.optional() },
+    inputSchema: { ...searchInput, id: id.optional() },
   }, ({ query, limit, id }) => {
     const hits = engine.search(query, limit, id);
     return { ...result(hits), structuredContent: { hits } };
@@ -52,6 +60,14 @@ export function createServer(engine: ContextEngine) {
     description: 'List up to 20 project decision keys and their current revisions. Pass the returned next key as after to continue.',
     inputSchema: { after: decisionKey.optional() },
   }, ({ after }) => result(engine.listDecisions(after)));
+  server.registerTool('context_decision_search', {
+    description: 'Look up past project decisions when asked what the project chose or why it changed something. Use a few distinctive keywords; all words must match the key or text. Results are current revisions with excerpts and evidence archive IDs and lines. Use context_read to quote the exact evidence and cite its location.',
+    inputSchema: searchInput,
+    annotations: { readOnlyHint: true },
+  }, ({ query, limit }) => {
+    const hits = engine.searchDecisions(query, limit);
+    return { ...result(hits), structuredContent: { hits } };
+  });
   return server;
 }
 

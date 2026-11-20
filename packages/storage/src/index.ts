@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { pageBudget, prefix, type Archive, type Cursor, type Decision, type DecisionDraft, type Entry, type Hit, type Page } from '@ctx/core';
+import { pageBudget, prefix, type Archive, type Cursor, type Decision, type DecisionDraft, type DecisionHit, type Entry, type Hit, type Page } from '@ctx/core';
 
 const schema = `
   CREATE TABLE documents(hash TEXT PRIMARY KEY);
@@ -41,6 +41,19 @@ export class SqliteArchive implements Archive {
           createdAt TEXT NOT NULL, PRIMARY KEY(key, revision)
         )
       `);
+      if (!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='decision_terms'").get()) {
+        this.db.exec(`
+          CREATE VIRTUAL TABLE decision_terms USING fts5(key, text, revision UNINDEXED);
+          INSERT INTO decision_terms(key, text, revision)
+          SELECT d.key, d.text, d.revision FROM decisions d
+          WHERE d.revision = (SELECT max(revision) FROM decisions WHERE key=d.key);
+          CREATE TRIGGER index_decision AFTER INSERT ON decisions BEGIN
+            DELETE FROM decision_terms
+            WHERE key=new.key AND decision_terms MATCH ('key:"' || replace(new.key, '"', '""') || '"');
+            INSERT INTO decision_terms(key, text, revision) VALUES (new.key, new.text, new.revision);
+          END;
+        `);
+      }
       this.db.exec('COMMIT');
     } catch (error) {
       this.db.close(); // Rolls back any open transaction.
@@ -100,6 +113,16 @@ export class SqliteArchive implements Archive {
       SELECT key, max(revision) AS revision FROM decisions
       WHERE key > ? GROUP BY key ORDER BY key LIMIT ?
     `).all(after, limit) as unknown as Pick<Decision, 'key' | 'revision'>[];
+  }
+
+  searchDecisions(expression: string, limit: number): DecisionHit[] {
+    return this.db.prepare(`
+      SELECT d.key, d.revision, d.archiveId, d.line,
+        substr(snippet(decision_terms, 1, '', '', '…', 16), 1, 240) AS excerpt
+      FROM decision_terms JOIN decisions d ON d.key=decision_terms.key AND d.revision=decision_terms.revision
+      WHERE decision_terms MATCH ?
+      ORDER BY rank, d.key LIMIT ?
+    `).all(expression, limit) as unknown as DecisionHit[];
   }
 
   save(entry: Entry, lines: string[]): Entry {

@@ -75,8 +75,11 @@ Open both agents in the project and follow each client's normal trust and MCP ap
 
 1. Archive the supporting output and find its evidence line with `context_search`.
 2. In the first agent, call `context_decision_save` with a stable key such as `build-timeout`, the decision and rationale in `text`, the evidence's `archiveId` and `line`, and `expectedRevision: 0`.
-3. In the second agent, use `context_decision_list` to discover keys, then `context_decision_read` to get the current revision. To revise it, save the same key with the current revision as `expectedRevision` and the evidence for the new decision. If another agent saved a revision first, read it before retrying.
-4. Read an older decision by passing its `revision` to `context_decision_read`. Use `context_read` with that revision's evidence archive ID and line to see the exact source.
+3. In the second agent, use `context_decision_search` with a few keywords such as `build timeout`. It matches all words across the key and text of each current decision and returns the revision, an excerpt, and the evidence archive ID and line. Use `context_read` to cite the exact evidence or `context_decision_read` to see the full decision. Use `context_decision_list` to browse keys.
+4. To revise a decision, read the current revision, then save the same key with that number as `expectedRevision` and the evidence for the new decision. If another agent saved a revision first, read it before retrying.
+5. Read an older decision by passing its `revision` to `context_decision_read`. Use `context_read` with that revision's evidence archive ID and line to see the exact source.
+
+Once a decision is saved, ask a fresh agent a question such as “Why did we change the CI build timeout?” The server guides the agent to look up the current decision and cite its archived evidence.
 
 <a id="self-hosted-gemini-gateway"></a>
 

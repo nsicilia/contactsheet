@@ -4,6 +4,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -40,7 +41,7 @@ test('stdio MCP and CLI share the archive and recover every line of a large log'
   await client.connect(new StdioClientTransport(server));
   t.after(() => client.close());
   assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(),
-    ['context_coding', 'context_decision_list', 'context_decision_read', 'context_decision_save',
+    ['context_coding', 'context_decision_list', 'context_decision_read', 'context_decision_save', 'context_decision_search',
       'context_index', 'context_read', 'context_search']);
   async function call(name, args) {
     const reply = await client.callTool({ name, arguments: args });
@@ -72,8 +73,8 @@ test('stdio MCP and CLI share the archive and recover every line of a large log'
   t.diagnostic(`${receipt.bytes} original UTF-8 bytes, ${Buffer.byteLength(receipt.preview)} preview bytes; 5/5 failures surfaced, exact recovery`);
 });
 
-test('independent MCP clients share revisioned decisions and exact evidence', async t => {
-  const { run } = workspace(t);
+test('MCP clients search current decisions across revisions and archive upgrades', async t => {
+  const { run, db } = workspace(t);
   const firstEvidence = run(['index'], 'Build exceeded the initial deadline.\n');
   const laterEvidence = run(['index'], 'The slow shard now completes within 90 seconds.\n');
   const server = run(['init']).mcpServers.contactsheet;
@@ -94,12 +95,18 @@ test('independent MCP clients share revisioned decisions and exact evidence', as
   const draft = { key, text: 'Allow 120 seconds until we measure the slow shard.', archiveId: firstEvidence.id, line: 1 };
   const first = await call(author, 'context_decision_save', { ...draft, expectedRevision: 0 });
   assert.equal(first.revision, 1);
+  assert.deepEqual(await call(author, 'context_decision_search', { query: 'deadline' }), []);
   await author.close();
 
   const reviewer = await connect('decision-reviewer');
   assert.deepEqual(await call(reviewer, 'context_decision_list', {}),
     { decisions: [{ key, revision: 1 }], next: null });
   assert.deepEqual(await call(reviewer, 'context_decision_read', { key }), first);
+  const initial = await call(reviewer, 'context_decision_search', { query: '120 seconds' });
+  assert.deepEqual(initial, [{ key, revision: 1, archiveId: firstEvidence.id, line: 1, excerpt: draft.text }]);
+  const other = await call(reviewer, 'context_decision_save', {
+    key: 'ci-build-timeout', text: 'Configure the interactive CI job.', archiveId: firstEvidence.id, line: 1, expectedRevision: 0,
+  });
   const write = (client, args) => client.callTool({ name: 'context_decision_save', arguments: args });
   const update = { ...draft, text: 'Set the timeout to 90 seconds based on the shard measurement.',
     archiveId: laterEvidence.id, expectedRevision: first.revision };
@@ -123,6 +130,31 @@ test('independent MCP clients share revisioned decisions and exact evidence', as
     const page = await call(observer, 'context_read', { id: decision.archiveId, line: decision.line, count: 1 });
     assert.equal(page.text, text);
   }
+  assert.deepEqual(await call(reviewer, 'context_decision_search', { query: '120 seconds' }), []);
+  const keyMatches = await call(reviewer, 'context_decision_search', { query: 'BUILD TIMEOUT' });
+  assert.deepEqual(keyMatches.map(({ key, revision }) => [key, revision]).sort(),
+    [[current.key, 2], [other.key, 1]]);
+  assert.deepEqual(await call(reviewer, 'context_decision_search', { query: 'build timeout', limit: 1 }), keyMatches.slice(0, 1));
+  await Promise.all([reviewer.close(), observer.close()]);
+
+  // Keep the decisions and evidence in the format an older archive used without a search index.
+  const existing = new DatabaseSync(db);
+  try {
+    existing.exec('DROP TRIGGER index_decision; DROP TABLE decision_terms');
+  } finally {
+    existing.close();
+  }
+  const fresh = await connect('decision-searcher');
+  assert.deepEqual(await call(fresh, 'context_decision_search', { query: '120 seconds' }), []);
+  const found = await call(fresh, 'context_decision_search', { query: '"shard measurement?"' });
+  assert.deepEqual(found, [{
+    key, revision: 2, archiveId: laterEvidence.id, line: 1, excerpt: current.text,
+  }]);
+  const [hit] = found;
+  const page = await call(fresh, 'context_read', { id: hit.archiveId, line: hit.line, count: 1 });
+  assert.equal(page.text, 'The slow shard now completes within 90 seconds.\n');
+  const invalidQuery = await fresh.callTool({ name: 'context_decision_search', arguments: { query: '?!' } });
+  assert.equal(invalidQuery.isError, true);
 });
 
 test('coding settings persist across CLI and MCP and invalid changes are atomic', async t => {
@@ -132,6 +164,8 @@ test('coding settings persist across CLI and MCP and invalid changes are atomic'
   await client.connect(new StdioClientTransport(run(['init']).mcpServers.contactsheet));
   t.after(() => client.close());
   assert.match(client.getInstructions(), /mode: off/);
+  assert.match(client.getInstructions(), /asks about a past project decision.*first call context_decision_search/);
+  assert.match(client.getInstructions(), /Use context_read with the evidence archive ID and line.*Quote the supporting archive line verbatim/);
   const call = args => client.callTool({ name: 'context_coding', arguments: args });
   assert.equal((await call({ level: 'ultra', action: 'unknown' })).isError, true);
   assert.equal(run(['coding']).level, 'off');

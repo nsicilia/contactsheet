@@ -31,6 +31,8 @@ export interface Decision extends DecisionDraft {
   createdAt: string;
 }
 
+export type DecisionHit = Pick<Decision, 'key' | 'revision' | 'archiveId' | 'line'> & { excerpt: string };
+
 export interface Archive {
   codingLevel(level?: string): string;
   save(entry: Entry, lines: string[]): Entry;
@@ -39,6 +41,7 @@ export interface Archive {
   saveDecision(draft: DecisionDraft, expectedRevision: number): Decision;
   readDecision(key: string, revision?: number): Decision;
   listDecisions(after: string, limit: number): Pick<Decision, 'key' | 'revision'>[];
+  searchDecisions(expression: string, limit: number): DecisionHit[];
 }
 
 export function integer(value: number, name: string, min: number, max: number) {
@@ -90,6 +93,13 @@ function sha(text: string) {
   return createHash('sha256').update(text).digest('hex');
 }
 
+function searchExpression(query: string) {
+  if (typeof query !== 'string' || query.length > 256) throw new Error('Query exceeds 256 characters');
+  const words = query.match(/[\p{L}\p{N}\p{M}]+/gu);
+  if (!words?.length) throw new Error('Enter a search term');
+  return words.map(word => '"' + word + '"').join(' AND ');
+}
+
 export class ContextEngine {
   constructor(private readonly archive: Archive) {}
 
@@ -124,10 +134,7 @@ export class ContextEngine {
 
   search(query: string, limit = 10, id?: string) {
     integer(limit, 'limit', 1, 50);
-    if (typeof query !== 'string' || query.length > 256) throw new Error('Query exceeds 256 characters');
-    const words = query.match(/[\p{L}\p{N}\p{M}]+/gu);
-    if (!words?.length) throw new Error('Enter a search term');
-    return this.archive.search(words.map(word => '"' + word + '"').join(' AND '), limit, id);
+    return this.archive.search(searchExpression(query), limit, id);
   }
 
   read(id: string, line = 1, count = 20, offset = 0) {
@@ -150,5 +157,10 @@ export class ContextEngine {
     const hasMore = decisions.length > 20;
     if (hasMore) decisions.pop();
     return { decisions, next: hasMore ? decisions.at(-1)!.key : null };
+  }
+
+  searchDecisions(query: string, limit = 10) {
+    integer(limit, 'limit', 1, 50);
+    return this.archive.searchDecisions(searchExpression(query), limit);
   }
 }
