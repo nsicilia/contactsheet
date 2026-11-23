@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -96,15 +96,21 @@ test('packaged VS Code hook and MCP server share an archive across restarts', {
 });
 
 test('IntelliJ installer writes a project registration and protects existing settings', async () => {
-  const project = await mkdtemp(join(tmpdir(), 'idea project '));
+  const dir = await mkdtemp(join(tmpdir(), 'contactsheet download '));
+  const project = join(dir, 'idea project');
   const file = join(project, '.junie/mcp/mcp.json');
-  const run = () => spawnSync(process.execPath, ['scripts/install-plugin.mjs', 'intellij', project],
-    { encoding: 'utf8', env: { ...process.env, CONTEXT_DB: '.context/archive.sqlite' } });
+  const run = () => spawnSync(process.execPath, ['install.mjs', 'intellij', project],
+    { cwd: dir, encoding: 'utf8', env: { ...process.env, CONTEXT_DB: '.context/archive.sqlite' } });
   try {
+    await mkdir(project);
+    await mkdir(join(dir, 'pi'));
+    await copyFile(join(out, 'install.mjs'), join(dir, 'install.mjs'));
+    await copyFile(join(out, 'pi/contactsheet.mjs'), join(dir, 'pi/contactsheet.mjs'));
     const first = run();
     assert.equal(first.status, 0, first.stderr);
     const config = JSON.parse(first.stdout);
     assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), config);
+    assert.equal(config.mcpServers.contactsheet.args[0], await realpath(join(dir, 'pi/contactsheet.mjs')));
     assert.equal(config.mcpServers.contactsheet.args.at(-1), join(project, '.context/archive.sqlite'));
     assert.equal(run().status, 0);
     const other = '{"mcpServers":{"other":{"command":"example"}}}';
@@ -112,6 +118,6 @@ test('IntelliJ installer writes a project registration and protects existing set
     assert.equal(run().status, 1);
     assert.equal(await readFile(file, 'utf8'), other);
   } finally {
-    await rm(project, { recursive: true, force: true });
+    await rm(dir, { recursive: true, force: true });
   }
 });

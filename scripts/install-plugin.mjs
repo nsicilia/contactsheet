@@ -2,9 +2,9 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { mcpConfig } from '../apps/cli/dist/hooks.js';
-import { join, resolve } from 'node:path';
-import { out, packagePlugins } from './package-plugins.mjs';
+import { dirname, join, resolve } from 'node:path';
 
+const out = dirname(fileURLToPath(import.meta.url));
 const market = join(out, 'marketplace');
 const commands = {
   codex: [['codex', 'plugin', 'marketplace', 'add', market], ['codex', 'plugin', 'add', 'contactsheet@contactsheet']],
@@ -22,9 +22,9 @@ const host = process.argv[2];
 if (host === 'intellij') {
   const project = resolve(process.argv[3] ?? '.');
   if (process.argv.length > 4 || !(await stat(project)).isDirectory()) {
-    throw new Error('Usage: pnpm plugin intellij [project-directory]');
+    throw new Error('Usage: node install.mjs intellij [project-directory]');
   }
-  const cli = fileURLToPath(new URL('../apps/cli/dist/index.js', import.meta.url));
+  const cli = join(out, 'pi/contactsheet.mjs');
   const config = mcpConfig(cli, resolve(project, process.env.CONTEXT_DB ?? '.context/archive.sqlite'));
   const json = JSON.stringify(config, null, 2);
   const dir = join(project, '.junie', 'mcp');
@@ -45,10 +45,9 @@ if (host === 'intellij') {
   console.error('For AI Assistant, paste this JSON in Settings → Tools → AI Assistant → Model Context Protocol (MCP) → Add → STDIO.');
   console.log(json);
 } else if (!Object.hasOwn(commands, host)) {
-  console.error('Usage: pnpm plugin <' + [...Object.keys(commands), 'intellij'].join('|') + '>');
+  console.error('Usage: node install.mjs <' + [...Object.keys(commands), 'intellij'].join('|') + '>');
   process.exit(2);
 } else {
-  await packagePlugins();
   for (const [program, ...args] of commands[host]) {
     let result = spawnSync(program, args, { stdio: 'inherit' });
     if (program === 'codex' && result.error?.code === 'ENOENT' && process.platform === 'darwin') {
@@ -61,7 +60,7 @@ if (host === 'intellij') {
       }
     }
     if (result.error?.code === 'ENOENT') {
-      console.error(`Could not locate ${program}. Add its CLI executable to PATH and rerun pnpm plugin ${host}.`);
+      console.error(`Could not locate ${program}. Add its CLI executable to PATH and rerun the installer.`);
       process.exit(1);
     }
     if (result.error) throw result.error;

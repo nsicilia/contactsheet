@@ -155,6 +155,7 @@ export async function packagePlugins() {
     await client.close();
     await rm(tmp, { recursive: true, force: true });
   }
+  await put(join(out, 'install.mjs'), await bundle('scripts/install-plugin.mjs'));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

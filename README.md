@@ -8,11 +8,10 @@ Keep the full build log on your machine. Give your coding agent a short failure 
 
 ## Install an agent plugin
 
-From the ContactSheet checkout, use Node.js **24.12+ (24.x with FTS5)** and **pnpm 10.13.1**. Install dependencies once, then select your host. For example, to use Gemini CLI:
+Download [`contactsheet-plugins.zip`](https://github.com/nsicilia/contactsheet/releases/latest/download/contactsheet-plugins.zip) from the [latest GitHub release](https://github.com/nsicilia/contactsheet/releases/latest) and extract it to a folder you plan to keep. You'll need Node.js **24.12+ (24.x with FTS5)** and your host's CLI on PATH. Open a terminal in the extracted folder and run the installer for your host. For example, to use Gemini CLI, run:
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm plugin gemini
+node install.mjs gemini
 ```
 
 Restart the host, approve the plugin or hooks if prompted, and look for `context_search` in its tools.
@@ -22,43 +21,44 @@ Restart the host, approve the plugin or hooks if prompted, and look for `context
 
 | Host | Install |
 | --- | --- |
-| Codex | `pnpm plugin codex` |
-| Gemini CLI | `pnpm plugin gemini` |
-| Qwen Code | `pnpm plugin qwen` |
-| Pi | `pnpm plugin pi` |
-| OMP | `pnpm plugin omp` |
-| OpenCode 2 | `pnpm plugin opencode` |
-| GitHub Copilot CLI | `pnpm plugin copilot` |
-| Kiro CLI | `pnpm plugin kiro` |
-| VS Code with Copilot | `pnpm plugin vscode` |
-| IntelliJ IDEA (Junie or AI Assistant) | `pnpm plugin intellij /path/to/project` |
-| ZCode | `pnpm plugin zcode` |
+| Codex | `node install.mjs codex` |
+| Gemini CLI | `node install.mjs gemini` |
+| Qwen Code | `node install.mjs qwen` |
+| Pi | `node install.mjs pi` |
+| OMP | `node install.mjs omp` |
+| OpenCode 2 | `node install.mjs opencode` |
+| GitHub Copilot CLI | `node install.mjs copilot` |
+| Kiro CLI | `node install.mjs kiro` |
+| VS Code with Copilot | `node install.mjs vscode` |
+| IntelliJ IDEA (Junie or AI Assistant) | `node install.mjs intellij /path/to/project` |
+| ZCode | `node install.mjs zcode` |
 
-**IntelliJ IDEA.** Pass the directory you open in the IDE. The installer registers Junie in that project or prints merge instructions for an existing configuration. For AI Assistant, paste the printed JSON into **Settings → Tools → AI Assistant → Model Context Protocol (MCP) → Add → STDIO**. Keep the checkout in place and use the CLI pipe below for build capture. [Junie setup](https://junie.jetbrains.com/docs/junie-ide-plugin.html) · [AI Assistant setup](https://www.jetbrains.com/help/ai-assistant/mcp.html)
+**IntelliJ IDEA.** Pass the directory you open in the IDE. The installer registers Junie in that project or prints merge instructions for an existing configuration. For AI Assistant, paste the printed JSON into **Settings → Tools → AI Assistant → Model Context Protocol (MCP) → Add → STDIO**. Keep the extracted folder in place. [Junie setup](https://junie.jetbrains.com/docs/junie-ide-plugin.html) · [AI Assistant setup](https://www.jetbrains.com/help/ai-assistant/mcp.html)
 
-**Kiro IDE.** Run `pnpm plugins:pack`, import `dist/plugins/portable` under **Powers → Add Custom Power**, and use the CLI pipe for capture.
+**Kiro IDE.** Import the extracted `portable` folder under **Powers → Add Custom Power**.
 
 **VS Code with Copilot.** Start a Copilot session. The capture hook and search server share `archive.sqlite` in Copilot's persistent ContactSheet plugin-data directory. The archive is shared across workspaces for that installation. To check capture, run a supported build or test through Copilot that produces more than 8 KiB of output. Use the returned archive ID with `context_search` and `context_read` to recover an original line.
 
-**Updates.** Keep Node 24 on the host’s PATH. Gemini, Qwen, Pi and OMP can link the checkout. Keep it at a stable path and rebuild to refresh linked packages. Reinstall copied packages or remove them through the host’s plugin manager. Remove duplicate manual registrations when switching to a plugin.
+**Updates.** Extract the new ZIP over the same folder to refresh linked packages. Rerun the installer for hosts that copy packages. If you move the folder, update any registrations that reference its old path.
 
 </details>
 
+**Build from source.** From a checkout with pnpm 10.13.1, run `pnpm install --frozen-lockfile` and `pnpm plugin <host>`. To build the packages without installing them, run `pnpm plugins:pack`. Pushing a tag that matches the CLI version, such as `v0.1.0`, builds and publishes the ZIP through GitHub Actions.
+
 ## Run it
 
-Try a two-line log from the checkout:
+Try a two-line log from the extracted folder:
 
 ```sh
-pnpm build
-printf 'PASS cache\nERROR checkout timed out\n' | pnpm --silent ctx index --source checkout
-pnpm --silent ctx search 'checkout timed out'
+printf 'PASS cache\nERROR checkout timed out\n' | node pi/contactsheet.mjs index --source checkout
+node pi/contactsheet.mjs search 'checkout timed out'
 ```
 
 The search returns the archive ID and line number. In a connected agent using the same archive, ask:
 
 > Read the line containing “checkout timed out” from the checkout log.
 
-Or use `pnpm --silent ctx read <archive-id> --line 2 --count 1`. For an existing file, run `pnpm --silent ctx index build.log`.
+Or run `node pi/contactsheet.mjs read <archive-id> --line 2 --count 1`. For an existing file, run `node pi/contactsheet.mjs index build.log`. From a source checkout, run `pnpm build` and use `pnpm --silent ctx` for the same commands.
 
 ## Share project decisions between agents
 
@@ -132,7 +132,7 @@ Automatic capture returns up to 8,192 bytes verbatim. To keep more output inline
 
 ```sh
 set -o pipefail
-pnpm test 2>&1 | pnpm --silent ctx index --source 'pnpm test' --session local
+pnpm test 2>&1 | node /path/to/extracted-folder/pi/contactsheet.mjs index --source 'pnpm test' --session local
 ```
 
 <details>

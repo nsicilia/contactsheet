@@ -12,7 +12,7 @@
     "contactsheet": "node apps/cli/dist/index.js",
     "ctx": "node apps/cli/dist/index.js",
     "test": "pnpm run build && node --test tests/*.test.mjs",
-    "plugin": "pnpm run build && node scripts/install-plugin.mjs",
+    "plugin": "pnpm run plugins:pack && node dist/plugins/install.mjs",
     "plugins:pack": "pnpm run build && node scripts/package-plugins.mjs"
   },
   "devDependencies": {
