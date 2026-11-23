@@ -11,6 +11,21 @@ import { out, packagePlugins } from '../scripts/package-plugins.mjs';
 
 test.before(packagePlugins);
 
+test('Codex and VS Code packages include their declared plugin icon', async () => {
+  const icon = await readFile(new URL('../plugins/icon.png', import.meta.url));
+  const codex = join(out, 'marketplace/plugins/codex');
+  const manifest = JSON.parse(await readFile(join(codex, '.codex-plugin/plugin.json'), 'utf8'));
+  assert.equal(manifest.interface.logo, manifest.interface.composerIcon);
+  assert.deepEqual(await readFile(join(codex, manifest.interface.logo)), icon);
+
+  const files = unzipSync(await readFile(join(out, 'contactsheet.vsix')));
+  const extension = JSON.parse(strFromU8(files['extension/package.json']));
+  const path = 'extension/' + extension.icon;
+  assert.deepEqual(Buffer.from(files[path]), icon);
+  assert.ok(strFromU8(files['extension.vsixmanifest']).includes(`<Icon>${path}</Icon>`));
+  assert.ok(strFromU8(files['[Content_Types].xml']).includes('Extension="png" ContentType="image/png"'));
+});
+
 test('packaged Pi tools index, search and read from the same workspace', async () => {
   const { default: register } = await import('../dist/plugins/pi/index.mjs');
   const tools = new Map();

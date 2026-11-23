@@ -16,6 +16,8 @@ const author = { name: 'ContactSheet contributors' };
 const meta = { name, version, description, author, license: 'MIT' };
 const skill = await readFile(join(root, 'plugins/SKILL.md'));
 const license = await readFile(join(root, 'LICENSE'));
+const iconPath = 'assets/icon.png';
+const icon = await readFile(join(root, 'plugins/icon.png'));
 const json = value => JSON.stringify(value, null, 2) + '\n';
 const put = async (path, bytes) => {
   await mkdir(dirname(path), { recursive: true });
@@ -61,12 +63,14 @@ function pre(event, tool, base, agent) {
 
 async function vsix(dir) {
   const publisher = 'nsicilia';
+  const vsixIconPath = 'extension/' + iconPath;
   const extension = { ...meta, publisher, displayName: 'ContactSheet', engines: { vscode: '^1.143.0' },
-    contributes: { chatPlugins: [{ path: './plugin' }] } };
+    icon: iconPath, contributes: { chatPlugins: [{ path: './plugin' }] } };
   const files = {
     'extension/package.json': strToU8(json(extension)),
-    '[Content_Types].xml': strToU8('<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="json" ContentType="application/json"/><Default Extension="mjs" ContentType="application/javascript"/><Default Extension="md" ContentType="text/markdown"/><Default Extension="txt" ContentType="text/plain"/><Default Extension="vsixmanifest" ContentType="text/xml"/></Types>'),
-    'extension.vsixmanifest': strToU8(`<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011"><Metadata><Identity Language="en-US" Id="contactsheet" Version="${version}" Publisher="${publisher}"/><DisplayName>ContactSheet</DisplayName><Description>${description}</Description><Properties><Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.143.0"/></Properties></Metadata><Installation><InstallationTarget Id="Microsoft.VisualStudio.Code"/></Installation><Dependencies/><Assets><Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true"/></Assets></PackageManifest>`),
+    [vsixIconPath]: icon,
+    '[Content_Types].xml': strToU8('<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="json" ContentType="application/json"/><Default Extension="mjs" ContentType="application/javascript"/><Default Extension="md" ContentType="text/markdown"/><Default Extension="png" ContentType="image/png"/><Default Extension="txt" ContentType="text/plain"/><Default Extension="vsixmanifest" ContentType="text/xml"/></Types>'),
+    'extension.vsixmanifest': strToU8(`<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011"><Metadata><Identity Language="en-US" Id="contactsheet" Version="${version}" Publisher="${publisher}"/><DisplayName>ContactSheet</DisplayName><Description>${description}</Description><Properties><Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.143.0"/></Properties><Icon>${vsixIconPath}</Icon></Metadata><Installation><InstallationTarget Id="Microsoft.VisualStudio.Code"/></Installation><Dependencies/><Assets><Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true"/><Asset Type="Microsoft.VisualStudio.Services.Icons.Default" Path="${vsixIconPath}" Addressable="true"/></Assets></PackageManifest>`),
   };
   for (const entry of await readdir(dir, { recursive: true, withFileTypes: true })) {
     if (!entry.isFile()) continue;
@@ -110,7 +114,11 @@ export async function packagePlugins() {
     name, source: { source: 'local', path: './plugins/codex' }, category: 'Productivity',
     policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
   }] });
-  await jsonFile(codex, '.codex-plugin/plugin.json', { ...meta, mcpServers: './.mcp.json', skills: './skills/' });
+  await put(join(codex, iconPath), icon);
+  await jsonFile(codex, '.codex-plugin/plugin.json', {
+    ...meta, mcpServers: './.mcp.json', skills: './skills/',
+    interface: { composerIcon: './' + iconPath, logo: './' + iconPath },
+  });
   await jsonFile(codex, '.mcp.json', stdio('${PLUGIN_ROOT}'));
   await jsonFile(codex, 'hooks/hooks.json', pre('PreToolUse', 'Bash', '${PLUGIN_ROOT}', 'codex'));
 
